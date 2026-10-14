@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f7a63">
+    <title>1с база</title>
+    <link rel="icon" href="data:,">
+    <script>
+(function () {
+    try {
+        var cores = navigator.hardwareConcurrency || 4;
+        var mem = navigator.deviceMemory || 4;
+        var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var touch = window.matchMedia('(pointer: coarse)').matches;
+        var fine = window.matchMedia('(pointer: fine)').matches;
+        var w = window.innerWidth;
+        var c = document.documentElement.classList;
+
+        if (reduce || cores <= 2 || mem <= 2) c.add('low-end');
+        else if (cores <= 4) c.add('mid-end');
+
+        var high = !reduce && cores > 4 && mem > 4;
+        if (high) c.add('is-high');
+
+        if (touch) c.add('is-touch');
+
+        if (fine && !touch && w >= 900) c.add('is-desktop');
+        else if (w >= 900) c.add('is-wide');
+
+        if (w >= 1400) c.add('is-2xl');
+
+        var dpr = window.devicePixelRatio || 1;
+        if (dpr >= 1.5) c.add('is-retina');
+    } catch (e) {}
+})();
+</script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/theme.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div id="topProgress" class="top-progress"></div>
+
+    <div id="userBadge" class="user-badge"></div>
+
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-box">
+            <h2>Вхід у систему</h2>
+            <p>Введіть ваш ПІН-код для початку роботи</p>
+            <input type="password" id="pinInput" class="pin-input" inputmode="numeric" pattern="[0-9]*" placeholder="••••">
+            <div id="authError" class="auth-error" style="display: none;">Невірний ПІН-код</div>
+            <button class="action-btn" onclick="login()" style="width: 100%; padding: 12px; font-size: 1.1rem;">Увійти</button>
+        </div>
+    </div>
+
+    <button id="themeToggle" class="theme-toggle" aria-label="Увімкнути темну тему"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></button>
+    <button id="clearCacheBtn" class="cache-toggle" title="Очистити кеш" aria-label="Очистити кеш"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg></button>
+
+
+    <div class="app-wrapper" id="appWrapper">
+        <div class="search-container center" id="searchContainer">
+            <div class="search-box">
+                <span class="search-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg></span>
+                <input type="text" id="searchInput" placeholder="Введіть код точки..." autocomplete="off">
+            </div>
+            <div class="search-filters" id="searchFilters">
+                <button type="button" class="filter-chip active" data-mode="all">Всі</button>
+                <button type="button" class="filter-chip" data-mode="point">Точка</button>
+                <button type="button" class="filter-chip" data-mode="machine">Машина</button>
+            </div>
+            <div class="search-hint" id="searchHint">Введіть номер точки. 0 покаже всі точки</div>
+        </div>
+
+        <div class="results-container" id="resultsContainer"></div>
+    </div>
+
+    <button id="backToTop" class="back-to-top" aria-label="Вгору"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box assort-box">
+            <div class="modal-header">
+                <div class="assort-head">
+                    <h3>Показники</h3>
+                    <div class="assort-sub" id="modalSub"></div>
+                </div>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer">
+                <button class="action-btn" onclick="showConfirmModal()">Продовжити</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmOverlay" style="z-index: 1010;">
+        <div class="modal-box confirm-box">
+            <div class="modal-header">
+                <h3>Перевірка даних</h3>
+                <button class="modal-close" onclick="closeConfirmModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="text-align: center; margin-bottom: 15px; color: var(--text-muted); font-size: 0.95rem;">Перевірте підсумкові цифри перед відправкою в 1С</p>
+                <div class="confirm-summary">
+                    <div class="confirm-item">
+                        <span>Всього продано:</span>
+                        <strong id="confirmTotalCups" style="color: var(--text-heading); font-size: 1.2rem;">0 шт</strong>
+                    </div>
+                    <div class="confirm-item">
+                        <span>На суму:</span>
+                        <strong id="confirmTotalMoney" style="color: var(--success); font-size: 1.2rem;">0 ₴</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button class="action-btn btn-secondary" onclick="closeConfirmModal()">Назад</button>
+                <button class="action-btn btn-success" onclick="submitMeters()">Відправити в 1С</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="paymentOverlay" style="z-index: 1020;">
+        <div class="modal-box confirm-box">
+            <div class="modal-header">
+                <h3>Оплата боргу</h3>
+                <button class="modal-close" onclick="closePaymentModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="text-align:center; margin-bottom:6px; font-weight:600;" id="paymentPointName"></p>
+                <div class="confirm-summary">
+                    <div class="confirm-item">
+                        <span>Поточний борг:</span>
+                        <strong id="paymentCurrentDebt" class="debt-value red">0 ₴</strong>
+                    </div>
+                </div>
+                <div class="meter-input-group" style="margin-top:16px;">
+                    <label style="font-size:0.85rem; color: var(--text-muted); display:block; margin-bottom:6px;">Сума оплати, ₴</label>
+                    <input type="number" inputmode="decimal" id="paymentAmount" min="0" step="0.01" placeholder="0">
+                </div>
+                <div id="paymentError" class="auth-error" style="display:none; margin-top:10px; margin-bottom:0;"></div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button class="action-btn btn-secondary" onclick="closePaymentModal()">Скасувати</button>
+                <button class="action-btn btn-success" onclick="submitPayment()">Провести оплату</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmDialogOverlay" style="z-index: 1500;">
+        <div class="modal-box confirm-box">
+            <div class="modal-header">
+                <h3 id="confirmDialogTitle">Підтвердіть дію</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirmDialogMessage" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.45;"></p>
+                <div id="confirmDialogDetails" class="confirm-dialog-details"></div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button class="action-btn btn-secondary" type="button" id="confirmDialogCancel">Скасувати</button>
+                <button class="action-btn btn-danger" type="button" id="confirmDialogOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <span id="toastMessage">Успішно!</span>
+    </div>
+
+    <div id="connectionStatus" class="connection-status" title="Натисніть для оновлення">
+        <div class="status-dot"></div>
+        <div class="status-content">
+            <span class="status-text">Перевірка зв'язку...</span>
+            <span class="status-time" id="statusTime"></span>
+        </div>
+        <span class="refresh-icon">⟳</span>
+    </div>
+
+    <div id="appVersion" class="app-version"></div>
+
+    <!-- jборачиваем fetch, чтобы ngrok не показывал страницу предупреждения
+         для запросов приложения. заголовок говорит ngrok это не бот, пропускай. -->
+    <script>
+    (function () {
+        const originalFetch = window.fetch;
+        window.fetch = function (input, init) {
+            init = init || {};
+            // если это запрос на наш ngrok-домен добавляем заголовок
+            const url = typeof input === 'string' ? input : (input && input.url) || '';
+            if (url.includes('ngrok-free.dev') || url.includes('ngrok-free.app')) {
+                init.headers = Object.assign({}, init.headers, {
+                    'ngrok-skip-browser-warning': '1'
+                });
+            }
+            return originalFetch.call(this, input, init);
+        };
+    })();
+    </script>
+
+    <script src="version.js"></script>
+    <script src="javascript/config.js"></script>
+    <script src="javascript/auth.js"></script>
+    <script src="javascript/script.js"></script>
+    <script src="javascript/assortments.js"></script>
+    <script src="javascript/recount.js"></script>
+    <script src="javascript/notes.js"></script>
+    <script src="javascript/goods.js"></script>
+    <script src="javascript/drawer.js"></script>
+    <script src="javascript/machines.js"></script>
+    <script src="javascript/shipment.js"></script>
+    <script src="javascript/optimize.js"></script>
+
+    <script>
+    // если версия не менялась,
+    // service worker может отдать клиенту старый закэшированный код.
+    // если тут старый номер, значит пора поднять APP_VERSION.
+    (function () {
+        try {
+            if (typeof APP_VERSION === 'undefined') return;
+
+            // запоминаем последнюю версию, которую видел этот браузер
+            const seen = localStorage.getItem('__lastSeenVersion');
+
+            // если версия поменялась пишем инфо один раз и обновляем метку
+            if (seen !== APP_VERSION) {
+                localStorage.setItem('__lastSeenVersion', APP_VERSION);
+                console.info(
+                    '%c[app] версия ' + APP_VERSION +
+                    ' если только что деплоили, надо поднять её в version.js',
+                    'color:#0d5946;font-weight:bold'
+                );
+                return;
+            }
+
+            // если версия та же пишем предупреждение, чтобы не забыть
+            console.warn(
+                '%c[app] версия не менялась с прошлого запуска (' + APP_VERSION + ')' +
+                ' если деплоили код, клиенты увидят старый кэш',
+                'color:#b45309;font-weight:bold'
+            );
+        } catch (e) {}
+    })();
+    </script>
+</body>
+</html>
