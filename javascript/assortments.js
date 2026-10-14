@@ -261,26 +261,19 @@ function renderAssortBody(data, offline) {
 
     order.canOrder = false;
 
-    if (data.length === 1 && String(data[0].Code) === '0') {
-        body.innerHTML = `
-            <div class="empty-state" style="padding:28px 20px;">
-                ${escapeHtml(data[0].Name)}
-            </div>
-        `;
-        updateOrderBar();
-        return;
-    }
+        if (isStubResponse(data)) {
+                body.innerHTML = emptyStateHtml(data[0].Name);
+                updateOrderBar();
+                return;
+                                    }
 
-    if (!data.length) {
-        body.innerHTML = `
-            <div class="empty-state" style="padding:28px 20px;">
-                Асортимент порожній
-            </div>
-        `;
-        updateOrderBar();
-        return;
-    }
+        if (!data.length) {
+                body.innerHTML = emptyStateHtml('Асортимент порожній');
+                updateOrderBar();
+                return;
+                                    }
 
+                                
     order.canOrder = !offline;
     order.items = {};
 
@@ -372,17 +365,10 @@ function renderAssortBody(data, offline) {
                                     <label>Кількість</label>
                                     ${
                                         order.canOrder
-                                            ? `
-                                                <div class="qty">
-                                                    <button type="button" class="qty-btn" data-step="-1" aria-label="Менше">−</button>
-                                                    <input type="text" class="qty-input" inputmode="numeric" value="0" aria-label="Кількість">
-                                                    <button type="button" class="qty-btn" data-step="1" aria-label="Більше">+</button>
-                                                </div>
-                                              `
-                                            : `<div class="assort-field-static">—</div>`
-                                    }
+                                        ? qtyControlHtml({ value: 0, aria: 'Кількість' })
+                                        : `<div class="assort-field-static">—</div>`
+}
                                 </div>
-
                                 <div>
                                     <label>Сума</label>
                                     <div class="assort-row-total">0 ₴</div>

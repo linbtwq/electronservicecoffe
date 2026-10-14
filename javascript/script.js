@@ -1155,6 +1155,33 @@ function machineIconMarkup() {
     return '<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14v9a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V8Z"/><path d="M9 8V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v3"/><path d="M9 13h6"/><path d="M10 16h4"/></svg>';
 }
 
+// общие хелперы для модалок
+
+// заглушка от 1С массив из одного элемента с Code === '0'
+function isStubResponse(data) {
+    return Array.isArray(data) && data.length === 1 && String(data[0].Code) === '0';
+}
+
+// пустое состояние
+function emptyStateHtml(text, padding) {
+    const pad = padding || '28px 20px';
+    return `<div class="empty-state" style="padding:${pad};">${escapeHtml(text)}</div>`;
+}
+
+// qty-контрол +/− с полем ввода
+function qtyControlHtml(opts) {
+    const o = opts || {};
+    const value = Number(o.value) || 0;
+    const aria = o.aria || 'Кількість';
+    return `
+        <div class="qty">
+            <button type="button" class="qty-btn" data-step="-1" aria-label="Менше">−</button>
+            <input type="text" class="qty-input" inputmode="numeric" value="${value}" aria-label="${escapeHtml(aria)}">
+            <button type="button" class="qty-btn" data-step="1" aria-label="Більше">+</button>
+        </div>
+    `;
+}
+
 // блок карточки точки
 function cardHtml(item, idx) {
     const lockSnap = _lockSnapshot[String(item.id)] || { meter: null, order: null };
