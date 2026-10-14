@@ -857,3 +857,37 @@ body.dark-theme .dg-code-chip {
 }
 
 .dg-price { font-size: 0.8rem; font-weight: 600; color: #16a34a; }
+
+.dg-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 4px;
+    padding: 14px 12px;
+    border-radius: 12px;
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.dg-retry {
+    min-height: 36px;
+    padding: 6px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-heading);
+    font-size: 0.82rem;
+    font-weight: 650;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.dg-retry:active {
+    transform: scale(0.95);
+    background: var(--surface-2);
+}

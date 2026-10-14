@@ -24,7 +24,7 @@ const SEARCH_MODES = {
         placeholder: 'Введіть номер або назву апарату...',
         hint: 'Код машини або назва обладнання. 0 покаже апарати',
         empty: 'Обладнання з таким номером не знайдено',
-        hideSearch: true          // ← ДОБАВИЛИ
+        hideSearch: true
     }
 };
 
@@ -131,9 +131,6 @@ function saveLocks(locks) {
     _locksCacheAt = Date.now();
 }
 
-let _queueCache = null;
-let _queueCacheAt = 0;
-
 // ============================================================
 // ОЧЕРЕДЬ И FAILED-TRACK
 // храним в IndexedDB, потому что localStorage в приватном режиме
@@ -152,7 +149,7 @@ const FAILED_DB_KEY = 'failedMetersQueue';
 const QUEUE_LS_KEY  = 'offlineMetersQueue';
 const FAILED_LS_KEY = 'failedMetersQueue';
 
-// in-memory состояние — синхронный доступ для всего остального кода
+// in-memory состояние синхронный доступ для всего остального кода
 let _queueState = { queue: [], failed: [] };
 let _queueReady = false;
 
@@ -232,7 +229,6 @@ function saveQueue(q) {
 // блок отклонённых записей очереди
 // запись попадает сюда когда 1С несколько раз подряд ответила ошибкой
 const MAX_QUEUE_ATTEMPTS = 5;
-const FAILED_KEY = 'failedMetersQueue';
 const FAILED_TTL_MS = 14 * 24 * 3600 * 1000;
 
 function readFailed() {
@@ -442,7 +438,21 @@ const localDB = {
 // они принадлежат курьеру и не должны пропадать при выходе
 async function clearLocalDb() {
     try {
-        await localDB.save('cachedNomenclature', null);
+        const db = await localDB.getDb();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(localDB.store, 'readwrite');
+            const store = tx.objectStore(localDB.store);
+            const req = store.getAllKeys();
+            req.onsuccess = () => {
+                for (const key of req.result || []) {
+                    if (key !== QUEUE_DB_KEY && key !== FAILED_DB_KEY) {
+                        store.delete(key);
+                    }
+                }
+            };
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
     } catch (e) {
         console.warn('[clearLocalDb]', e);
     }
@@ -645,19 +655,21 @@ function initClearCacheButton() {
                 await Promise.all(keys.map(k => caches.delete(k)));
             }
             await clearLocalDb();
-                const keepUser = localStorage.getItem('currentUser');
-                const keepDark = localStorage.getItem('darkMode');
-                const keepMode = localStorage.getItem('searchMode');
-                const keepFailed = localStorage.getItem(FAILED_KEY);
-                const keepLocks = localStorage.getItem('pointLocks'); 
+            const keepUser   = localStorage.getItem('currentUser');
+            const keepDark   = localStorage.getItem('darkMode');
+            const keepMode   = localStorage.getItem('searchMode');
+            const keepFailed = localStorage.getItem(FAILED_LS_KEY);
+            const keepLocks  = localStorage.getItem('pointLocks');
+            const keepQueue  = localStorage.getItem(QUEUE_LS_KEY);
 
-                localStorage.clear();
+            localStorage.clear();
 
-                if (keepUser) localStorage.setItem('currentUser', keepUser);
-                if (keepDark) localStorage.setItem('darkMode', keepDark);
-                if (keepMode) localStorage.setItem('searchMode', keepMode);
-                if (keepFailed) localStorage.setItem(FAILED_KEY, keepFailed);
-                if (keepLocks) localStorage.setItem('pointLocks', keepLocks); 
+            if (keepQueue)  localStorage.setItem(QUEUE_LS_KEY, keepQueue);
+            if (keepUser)   localStorage.setItem('currentUser', keepUser);
+            if (keepDark)   localStorage.setItem('darkMode', keepDark);
+            if (keepMode)   localStorage.setItem('searchMode', keepMode);
+            if (keepFailed) localStorage.setItem(FAILED_LS_KEY, keepFailed);
+            if (keepLocks)  localStorage.setItem('pointLocks', keepLocks);
 
         } catch (e) {
             console.warn('[clear cache]', e);
@@ -725,8 +737,10 @@ async function runSync({ manual, quiet }) {
         saveFailed(failed);
     }
 
-    // кэш очереди живёт 500 мс, а после долгих запросов читается заново
-    // поэтому счётчик попыток переносим из обработанных объектов вручную
+    // payload'ы могли быть изменены в исходном массиве queue во время
+    // сетевых запросов (обновлён attempts, lastError). забираем их
+    // из исходного массива, а не из readQueue() там они могли быть
+    // уже перезаписаны параллельным вызовом saveQueue
     const byId = new Map(queue.map(p => [p.request_id, p]));
     const rest = readQueue()
         .filter(p => !done.has(p.request_id))
@@ -815,12 +829,13 @@ function onResultsClick(event) {
 
 function onResultsKeydown(event) {
     if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target.closest('.machine-expand')) return;
 
-    const card = event.target.closest('.point-card-machine');
-    if (!card) return;
+    const trigger = event.target.closest('[data-action="machines"]');
+    if (!trigger) return;
 
     event.preventDefault();
-    openMachinesModal(card.dataset.id);
+    toggleMachineExpand(trigger.dataset.id);
 }
 
 function handleVisibilityChange() {
@@ -839,9 +854,11 @@ function handleOnlineStatus() {
 }
 
 function handleGlobalClick(event) {
-    if (event.target === document.getElementById(MODAL_IDS.overlay)) closeModal();
-    if (event.target === document.getElementById(MODAL_IDS.confirmOverlay)) closeConfirmModal();
-    if (event.target === document.getElementById(MODAL_IDS.paymentOverlay)) closePaymentModal();
+    const el = event.target;
+    if (!el.classList || !el.classList.contains('modal-overlay')) return;
+    if (el.id === MODAL_IDS.overlay) closeModal();
+    else if (el.id === MODAL_IDS.confirmOverlay) closeConfirmModal();
+    else if (el.id === MODAL_IDS.paymentOverlay) closePaymentModal();
 }
 
 function setupMeterButtons() {
@@ -868,19 +885,41 @@ function setupMeterButtons() {
     });
 }
 
+let _backToTopVisible = false;
+let _backToTopTimer = null;
+
 function initBackToTop() {
     const btn = document.getElementById('backToTop');
-    if (!btn) return;
+    const results = document.getElementById('resultsContainer');
+    if (!btn || !results) return;
+
+    const onScroll = typeof window.throttle === 'function'
+        ? window.throttle(updateBackToTop, 120)
+        : () => {
+            if (_backToTopTimer) return;
+            _backToTopTimer = setTimeout(() => {
+                _backToTopTimer = null;
+                updateBackToTop();
+            }, 120);
+        };
+
+    results.addEventListener('scroll', onScroll, { passive: true });
+
     btn.addEventListener('click', () => {
-        const results = document.getElementById('resultsContainer');
-        if (results) results.scrollTo({ top: 0, behavior: 'smooth' });
+        results.scrollTo({ top: 0, behavior: 'smooth' });
     });
 }
+
 function updateBackToTop() {
     const results = document.getElementById('resultsContainer');
     const btn = document.getElementById('backToTop');
     if (!results || !btn) return;
-    btn.classList.toggle('visible', results.scrollTop > 400);
+
+    const show = results.scrollTop > 400;
+    if (show === _backToTopVisible) return;
+
+    _backToTopVisible = show;
+    btn.classList.toggle('visible', show);
 }
 
 function showVersion() {
@@ -918,10 +957,10 @@ async function loadData({ silent = false } = {}) {
 
     try {
         const response = await fetchWithTimeout(
-        `${apiBase}/nomenclature?t=${Date.now()}&v=${APP_CONFIG.apiVersion}&u=${encodeURIComponent(currentUser ? currentUser.id : '')}`,
-        { method: 'GET', cache: 'no-store' },
-         APP_CONFIG.loadTimeoutMs
-                                    );
+            `${apiBase}/nomenclature?t=${Date.now()}&v=${APP_CONFIG.apiVersion}&u=${encodeURIComponent(currentUser ? currentUser.id : '')}`,
+            { method: 'GET', cache: 'no-store' },
+            APP_CONFIG.loadTimeoutMs
+        );
 
         if (!response.ok) throw new Error('Помилка мережі');
         const data = await response.json();
@@ -1203,10 +1242,8 @@ function cardHtml(item, idx) {
     }
 
     // режим машины
-    // карточка без кнопок, вся кликабельна и открывает модалку с остатками
+    // карточка без кнопок, вся кликабельна и открывает раскрывающийся блок с остатками
     if (searchMode === 'machine') {
-        // раскрывающийся блок вместо модалки: та же карточка,
-        // но снизу появляется панель с остатками
         return `
             <div class="point-card point-card-machine${(meterLock || orderLock) ? ' locked' : ''}"
                  style="--i:${idx}"
@@ -1231,7 +1268,7 @@ function cardHtml(item, idx) {
 
                 <div class="machine-cta">
                     ${machineIconMarkup()}
-                        <span>Показати залишки</span>
+                    <span>Показати залишки</span>
                     <svg class="machine-cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                 </div>
 
@@ -1293,22 +1330,17 @@ function cardHtml(item, idx) {
                 <button class="action-btn" data-action="note" data-id="${id}">${actionIconMarkup('note')}<span>Примітка</span></button>
             </div>
 
-                        ${notes}
+            ${notes}
 
             ${searchMode === 'all' ? `
             <div class="machine-cta" data-action="machines" data-id="${id}" role="button" tabindex="0">
-                 ${machineIconMarkup()}
-                    <span>Показати залишки</span>
-                    <svg class="machine-cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                </div>
-                <div class="machine-expand" hidden></div>
+                ${machineIconMarkup()}
+                <span>Показати залишки</span>
+                <svg class="machine-cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+            <div class="machine-expand" hidden></div>
             ` : ''}
         </div>`;
-}
-
-function openStub(title, pointId) {
-    showToast(`${title}: в розробці`, false);
-    console.log('[stub]', title, 'pointId =', pointId);
 }
 
 function appendCards(container, replace) {
@@ -1358,6 +1390,7 @@ function renderResults(data) {
         appendCards(container, true);
     }
     container.scrollTop = 0;
+    updateBackToTop();
 }
 
 // блок модалки показателей
@@ -1971,6 +2004,10 @@ function lockTimeText(lock) {
 
 // ─── сброс ─────────────────────────────────────────────
 function resetAppState() {
+    if (typeof closeMachineExpand === 'function') {
+        try { closeMachineExpand(); } catch (e) {}
+    }
+
     globalData = [];
     _dataRevision++;
     lastResults = [];
@@ -1990,7 +2027,6 @@ function resetAppState() {
     isAtTop = false;
     _lastStatusKey = '';
     _locksCache = null;
-    _queueCache = null;
     invalidateLockSnapshot();
     clearTimeout(searchTimer);
     cancelAnimationFrame(renderFrame);
@@ -2005,9 +2041,12 @@ function resetAppState() {
     const results = document.getElementById('resultsContainer');
     if (results) {
         results.innerHTML = '';
+        results.scrollTop = 0;
         results.classList.remove('active');
         delete results.dataset.renderKey;
     }
+    updateBackToTop();
+
     const searchContainer = document.getElementById('searchContainer');
     if (searchContainer) {
         searchContainer.classList.remove('top');
@@ -2045,7 +2084,9 @@ function closeTopModal() {
     else if (m.id === 'confirmOverlay') closeConfirmModal();
     else if (m.id === 'paymentOverlay') closePaymentModal();
     else if (m.id === 'assortOverlay') closeAssortModal();
+    else if (m.id === 'orderConfirmOverlay') closeOrderConfirmModal();
     else if (m.id === 'stockOverlay') closeStockModal();
+    else if (m.id === 'shipmentOverlay') closeShipmentModal();
     else if (m.id === 'recountOverlay') closeRecountModal();
     else if (m.id === 'noteOverlay') closeNoteModal();
 }
@@ -2237,14 +2278,14 @@ async function openStockModal(pointId) {
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
 
         if (isStubResponse(data)) {
-        body.innerHTML = emptyStateHtml(data[0].Name);
-        return;
-                }
+            body.innerHTML = emptyStateHtml(data[0].Name);
+            return;
+        }
 
         if (!data.length) {
-        body.innerHTML = emptyStateHtml('Залишки відсутні');
-        return;
-                }
+            body.innerHTML = emptyStateHtml('Залишки відсутні');
+            return;
+        }
 
         const sorted = data.slice().sort((a, b) =>
             String(a.Name || '').localeCompare(String(b.Name || ''), 'uk')

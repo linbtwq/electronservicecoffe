@@ -7,10 +7,15 @@
 
 let _me = null;
 // _me = { pointId, card, box, data, query, filter, sort }
-let _meLoading = false;
 
 async function toggleMachineExpand(pointId) {
     const pid = String(pointId);
+
+    // если карточка была перерисована (поиск, фильтр, автообновление), сбрасываем старую ссылку
+    if (_me && (!_me.card || !_me.card.isConnected)) {
+        _me = null;
+    }
+
     // ищем карточку в любом режиме (Всі / Точка / Машина)
     const card = Array
         .from(document.querySelectorAll('.point-card'))
@@ -50,9 +55,6 @@ async function toggleMachineExpand(pointId) {
         sort: 'name'
     };
 
-    if (_meLoading) return;
-    _meLoading = true;
-
     try {
         const u = currentUser ? encodeURIComponent(currentUser.id) : '';
         const res = await fetchWithTimeout(
@@ -68,15 +70,15 @@ async function toggleMachineExpand(pointId) {
         // пользователь мог закрыть блок или открыть другой, пока шёл запрос
         if (!_me || _me.pointId !== pid) return;
 
-            if (isStubResponse(data)) {
+        if (isStubResponse(data)) {
             box.innerHTML = emptyStateHtml(data[0].Name, '24px 16px');
             return;
-                    }
+        }
 
-            if (!data.length) {
+        if (!data.length) {
             box.innerHTML = emptyStateHtml('Залишки відсутні', '24px 16px');
             return;
-                    }
+        }
 
         _me.data = data;
         renderMachineExpand();
@@ -86,8 +88,6 @@ async function toggleMachineExpand(pointId) {
         if (_me && _me.pointId === pid) {
             box.innerHTML = `<div class="assort-error" style="margin:0;">Не вдалося завантажити: ${escapeHtml(message)}</div>`;
         }
-    } finally {
-        _meLoading = false;
     }
 }
 
@@ -95,9 +95,11 @@ function closeMachineExpand() {
     if (!_me) return;
 
     const { card, box } = _me;
-    box.hidden = true;
-    box.innerHTML = '';
-    box.removeAttribute('data-ready');
+    if (box) {
+        box.hidden = true;
+        box.innerHTML = '';
+        box.removeAttribute('data-ready');
+    }
     if (card) card.classList.remove('machine-card-open');
 
     _me = null;
@@ -171,17 +173,20 @@ function renderMachineExpand() {
     });
 
     // сортировка
-    const sortBtn   = box.querySelector('[data-me="sort-btn"]');
-    const sortMenu  = box.querySelector('[data-me="sort-menu"]');
-    const sortValue = box.querySelector('[data-me="sort-value"]');
+    const sortControl = box.querySelector('.machines-sort-control');
+    const sortBtn     = box.querySelector('[data-me="sort-btn"]');
+    const sortMenu    = box.querySelector('[data-me="sort-menu"]');
+    const sortValue   = box.querySelector('[data-me="sort-value"]');
 
     const closeSortMenu = (restoreFocus = false) => {
         sortMenu.hidden = true;
+        if (sortControl) sortControl.classList.remove('is-open');
         sortBtn.setAttribute('aria-expanded', 'false');
         if (restoreFocus) sortBtn.focus();
     };
     const openSortMenu = () => {
         sortMenu.hidden = false;
+        if (sortControl) sortControl.classList.add('is-open');
         sortBtn.setAttribute('aria-expanded', 'true');
     };
 
@@ -245,10 +250,11 @@ function renderMachineList() {
         list.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
     }
 
-        if (!list.length) {
-            listBox.innerHTML = emptyStateHtml('Нічого не знайдено', '24px 16px');
-            return;
-                    }
+    if (!list.length) {
+        listBox.innerHTML = emptyStateHtml('Нічого не знайдено', '24px 16px');
+        return;
+    }
+
     let sumQty = 0;
     let sumMoney = 0;
     list.forEach(it => {
@@ -267,11 +273,11 @@ function renderMachineList() {
                 const cls = qty > 0 ? 'has' : (qty < 0 ? 'neg' : 'zero');
                 const priceHtml = price > 0 ? `<div class="mt-row-price">${fmt(price)} ₴</div>` : '';
                 return `
-                    <div class="mt-row mt-row-${cls}" style="--machine-row-index:${Math.min(index, 7)}">
+                    <div class="mt-row ${cls} mt-row-${cls}" style="--machine-row-index:${Math.min(index, 7)}">
                         <div class="mt-row-main">
-                            <div class="mt-row-name">${escapeHtml(it.Name || '—')}</div>
+                            <div class="mt-row-name">${escapeHtml(it.Name ?? '—')}</div>
                             ${code ? `<div class="mt-row-code">код ${escapeHtml(code)}</div>` : ''}
-                        </div>
+                            </div>
                         <div class="mt-row-side">
                             ${priceHtml}
                             <div class="mt-row-qty ${cls}">${fmt(qty)}</div>

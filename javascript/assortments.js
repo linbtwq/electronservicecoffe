@@ -52,6 +52,9 @@ function ensureAssortModal() {
 
     el.querySelector('.modal-close').addEventListener('click', closeAssortModal);
     el.querySelector('#orderSendBtn').addEventListener('click', showOrderConfirm);
+    el.addEventListener('click', (e) => {
+        if (e.target === el) closeAssortModal();
+    });
 
     return el;
 }
@@ -217,9 +220,9 @@ async function submitOrder() {
         try { body = await res.json(); } catch (e) {}
 
         if (body && body.conduct_error != null) {
-        const raw = String(body.conduct_error);
-        if (!isBlankServerError(raw)) conductError = raw;
-            }
+            const raw = String(body.conduct_error);
+            if (!isBlankServerError(raw)) conductError = raw;
+        }
 
         success = true;
     } catch (err) {
@@ -261,19 +264,18 @@ function renderAssortBody(data, offline) {
 
     order.canOrder = false;
 
-        if (isStubResponse(data)) {
-                body.innerHTML = emptyStateHtml(data[0].Name);
-                updateOrderBar();
-                return;
-                                    }
+    if (isStubResponse(data)) {
+        body.innerHTML = emptyStateHtml(data[0].Name);
+        updateOrderBar();
+        return;
+    }
 
-        if (!data.length) {
-                body.innerHTML = emptyStateHtml('Асортимент порожній');
-                updateOrderBar();
-                return;
-                                    }
+    if (!data.length) {
+        body.innerHTML = emptyStateHtml('Асортимент порожній');
+        updateOrderBar();
+        return;
+    }
 
-                                
     order.canOrder = !offline;
     order.items = {};
 
@@ -367,7 +369,7 @@ function renderAssortBody(data, offline) {
                                         order.canOrder
                                         ? qtyControlHtml({ value: 0, aria: 'Кількість' })
                                         : `<div class="assort-field-static">—</div>`
-}
+                                    }
                                 </div>
                                 <div>
                                     <label>Сума</label>

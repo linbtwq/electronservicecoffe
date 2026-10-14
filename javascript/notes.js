@@ -73,6 +73,9 @@ function ensureNoteModal() {
 
     el.querySelector('.modal-close').addEventListener('click', closeNoteModal);
     el.querySelector('#noteSendBtn').addEventListener('click', submitNote);
+    el.addEventListener('click', (e) => {
+        if (e.target === el) closeNoteModal();
+    });
 
     const ta = el.querySelector('#noteText');
     ta.addEventListener('input', updateNoteForm);

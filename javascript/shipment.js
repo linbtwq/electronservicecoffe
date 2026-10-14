@@ -37,6 +37,9 @@ function ensureShipmentModal() {
 
     el.querySelector('.modal-close').addEventListener('click', closeShipmentModal);
     el.querySelector('#shipmentSendBtn').addEventListener('click', submitShipment);
+    el.addEventListener('click', (e) => {
+        if (e.target === el) closeShipmentModal();
+    });
 
     return el;
 }
@@ -97,10 +100,10 @@ async function openShipmentModal(pointId) {
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
 
-       if (isStubResponse(data)) {
-           body.innerHTML = emptyStateHtml(data[0].Name);
-           return;
-       }
+        if (isStubResponse(data)) {
+            body.innerHTML = emptyStateHtml(data[0].Name);
+            return;
+        }
 
         shipmentItems = data.map(it => ({
             code: String(it.Code || ''),
@@ -264,7 +267,7 @@ function updateShipmentSummary() {
     }
 
     summary.innerHTML = `Відвантажуємо: <b>${count} поз.</b> на <b>${fmt(sum)} ₴</b>`;
-    btn.disabled = shipmentSending || !navigator.onLine;
+    btn.disabled = shipmentSending;
 }
 
 function applyShipmentSearch() {

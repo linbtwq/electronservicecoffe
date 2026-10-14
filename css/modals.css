@@ -861,7 +861,7 @@ body.dark-theme .meter-input.error {
 }
 
 /* ============================================================
-   МОДАЛКА ОСТАТКОВ ПО ТОЧКЕ
+   ОСТАТКИ ПО ТОЧКЕ / МАШИНЕ
    ============================================================ */
 
 .machines-box {
@@ -1346,24 +1346,24 @@ body.dark-theme .mf-chip.active .mf-chip-count { background: rgba(0, 0, 0, 0.18)
 }
 
 /* ============================================================
-   раскрывающийся блок остатков под карточкой (режим "Машина")
+   раскрывающийся блок остатков под карточкой (все режимы)
    ============================================================ */
 
-.point-card-machine .machine-expand {
+.point-card .machine-expand {
     margin-top: 14px;
     padding-top: 14px;
     border-top: 1px solid var(--separator);
     animation: fadeUp 0.22s var(--ease);
 }
 
-.point-card-machine .machine-expand[hidden] { display: none; }
+.point-card .machine-expand[hidden] { display: none; }
 
 /* при раскрытии — стрелочка вверх, CTA активнее */
-.point-card-machine.machine-card-open .machine-cta-arrow {
+.point-card.machine-card-open .machine-cta-arrow {
     transform: rotate(180deg);
 }
 
-.point-card-machine.machine-card-open .machine-cta {
+.point-card.machine-card-open .machine-cta {
     background: var(--primary);
     color: #fff;
 }
@@ -1379,4 +1379,4 @@ body.dark-theme .mf-chip.active .mf-chip-count { background: rgba(0, 0, 0, 0.18)
 
 .machine-expand .mt-list { margin-top: 0; }
 
-.low-end .point-card-machine .machine-expand { animation: none; }
+.low-end .point-card .machine-expand { animation: none; }

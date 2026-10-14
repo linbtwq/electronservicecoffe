@@ -37,6 +37,9 @@ function ensureRecountModal() {
 
     el.querySelector('.modal-close').addEventListener('click', closeRecountModal);
     el.querySelector('#recountSendBtn').addEventListener('click', submitRecount);
+    el.addEventListener('click', (e) => {
+        if (e.target === el) closeRecountModal();
+    });
 
     return el;
 }
@@ -101,7 +104,7 @@ async function openRecountModal(pointId) {
         if (isStubResponse(data)) {
             body.innerHTML = emptyStateHtml(data[0].Name);
             return;
-            }
+        }
 
         recountItems = data.map(it => ({
             Code: String(it.Code || ''),
