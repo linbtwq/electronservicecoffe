@@ -98,10 +98,10 @@ async function openRecountModal(pointId) {
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
 
-        if (data.length === 1 && String(data[0].Code) === '0') {
-            body.innerHTML = `<div class="empty-state" style="padding:28px 20px;">${escapeHtml(data[0].Name)}</div>`;
+        if (isStubResponse(data)) {
+            body.innerHTML = emptyStateHtml(data[0].Name);
             return;
-        }
+            }
 
         recountItems = data.map(it => ({
             Code: String(it.Code || ''),
@@ -143,11 +143,7 @@ function renderRecountBody() {
                                 </div>
                                 <div>
                                     <label>Фактичне</label>
-                                    <div class="qty">
-                                        <button type="button" class="qty-btn" data-step="-1" aria-label="Менше">−</button>
-                                        <input type="text" class="qty-input" inputmode="numeric" value="${it.actual}" aria-label="Фактичне">
-                                        <button type="button" class="qty-btn" data-step="1" aria-label="Більше">+</button>
-                                    </div>
+                                    ${qtyControlHtml({ value: it.actual, aria: 'Фактичне' })}
                                 </div>
                                 <div>
                                     <label>Відхилення</label>
