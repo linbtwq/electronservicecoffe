@@ -68,15 +68,15 @@ async function toggleMachineExpand(pointId) {
         // пользователь мог закрыть блок или открыть другой, пока шёл запрос
         if (!_me || _me.pointId !== pid) return;
 
-        if (data.length === 1 && String(data[0].Code) === '0') {
-            box.innerHTML = `<div class="empty-state" style="padding:24px 16px;">${escapeHtml(data[0].Name)}</div>`;
+            if (isStubResponse(data)) {
+            box.innerHTML = emptyStateHtml(data[0].Name, '24px 16px');
             return;
-        }
+                    }
 
-        if (!data.length) {
-            box.innerHTML = `<div class="empty-state" style="padding:24px 16px;">Залишки відсутні</div>`;
+            if (!data.length) {
+            box.innerHTML = emptyStateHtml('Залишки відсутні', '24px 16px');
             return;
-        }
+                    }
 
         _me.data = data;
         renderMachineExpand();
@@ -245,11 +245,10 @@ function renderMachineList() {
         list.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
     }
 
-    if (!list.length) {
-        listBox.innerHTML = `<div class="empty-state" style="padding:24px 16px;">Нічого не знайдено</div>`;
-        return;
-    }
-
+        if (!list.length) {
+            listBox.innerHTML = emptyStateHtml('Нічого не знайдено', '24px 16px');
+            return;
+                    }
     let sumQty = 0;
     let sumMoney = 0;
     list.forEach(it => {

@@ -2236,19 +2236,15 @@ async function openStockModal(pointId) {
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
 
-        if (data.length === 1 && String(data[0].Code) === '0') {
-            body.innerHTML = `
-                <div class="empty-state" style="padding: 28px 20px;">
-                    ${escapeHtml(data[0].Name)}
-                </div>
-            `;
-            return;
-        }
+        if (isStubResponse(data)) {
+        body.innerHTML = emptyStateHtml(data[0].Name);
+        return;
+                }
 
         if (!data.length) {
-            body.innerHTML = `<div class="empty-state" style="padding: 28px 20px;">Залишки відсутні</div>`;
-            return;
-        }
+        body.innerHTML = emptyStateHtml('Залишки відсутні');
+        return;
+                }
 
         const sorted = data.slice().sort((a, b) =>
             String(a.Name || '').localeCompare(String(b.Name || ''), 'uk')
