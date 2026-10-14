@@ -23,7 +23,8 @@ const SEARCH_MODES = {
     machine: {
         placeholder: 'Введіть номер або назву апарату...',
         hint: 'Код машини або назва обладнання. 0 покаже апарати',
-        empty: 'Обладнання з таким номером не знайдено'
+        empty: 'Обладнання з таким номером не знайдено',
+        hideSearch: true          // ← ДОБАВИЛИ
     }
 };
 
@@ -379,17 +380,16 @@ const newRequestId = () => (window.crypto && crypto.randomUUID)
     ? crypto.randomUUID()
     : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 
-const postMeters = (payload) => fetchWithTimeout(`${apiBase}/meters?v=${APP_CONFIG.apiVersion}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-}, APP_CONFIG.sendTimeoutMs);
-
-const postPayment = (payload) => fetchWithTimeout(`${apiBase}/payment?v=${APP_CONFIG.apiVersion}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-}, APP_CONFIG.sendTimeoutMs);
+// универсальный POST на любой метод 1С
+const postJson = (path, payload) => fetchWithTimeout(
+    `${apiBase}/${path}?v=${APP_CONFIG.apiVersion}`,
+    {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    },
+    APP_CONFIG.sendTimeoutMs
+);
 
 function showTopProgress() {
     const el = document.getElementById('topProgress');
@@ -513,9 +513,20 @@ function initSearchFilters() {
             searchMode = chip.dataset.mode;
             localStorage.setItem('searchMode', searchMode);
             applySearchMode();
-            if (searchInput) {
-                if (window.matchMedia('(pointer: fine)').matches) searchInput.focus();
-                if (searchInput.value.trim() !== '') handleSearch({ target: searchInput });
+
+            if (searchMode === 'machine') {
+                // машины прячем поиск, сразу показываем все аппараты
+                if (searchInput) searchInput.value = '';
+                showAllMachines();
+            } else {
+                if (searchInput) {
+                    if (window.matchMedia('(pointer: fine)').matches) searchInput.focus();
+                    if (searchInput.value.trim() !== '') {
+                        handleSearch({ target: searchInput });
+                    } else {
+                        resetSearchView();
+                    }
+                }
             }
         });
     });
@@ -528,8 +539,14 @@ function applySearchMode() {
     });
     const searchInput = document.getElementById('searchInput');
     const hint = document.getElementById('searchHint');
+    const searchContainer = document.getElementById('searchContainer');
+
     if (searchInput) searchInput.placeholder = cfg.placeholder;
     if (hint) hint.textContent = cfg.hint;
+
+    if (searchContainer) {
+        searchContainer.classList.toggle('machine-mode', cfg.hideSearch === true);
+    }
 }
 
 const _isFormField = (el) => {
@@ -672,7 +689,7 @@ async function runSync({ manual, quiet }) {
 
     for (const payload of queue) {
         try {
-            const response = await postMeters(payload);
+            const response = await postJson('meters', payload);
             if (response.ok || response.status === 409) {
                 markSynced(payload.point_id);
                 done.add(payload.request_id);
@@ -873,6 +890,10 @@ function showVersion() {
 
 // блок загрузки справочника
 function refreshResults() {
+    if (searchMode === 'machine') {
+        showAllMachines();
+        return;
+    }
     const input = document.getElementById('searchInput');
     if (input && input.value.trim() !== '') handleSearch({ target: input });
 }
@@ -942,6 +963,34 @@ async function loadData({ silent = false } = {}) {
         renderStatus();
         if (reloadQueued) { reloadQueued = false; loadData({ silent: true }); }
     }
+}
+
+// показать все машины без поискового запроса
+function showAllMachines() {
+    const searchContainer = document.getElementById('searchContainer');
+    const resultsContainer = document.getElementById('resultsContainer');
+    if (!searchContainer || !resultsContainer) return;
+
+    searchContainer.classList.remove('center');
+    searchContainer.classList.add('top');
+    resultsContainer.classList.add('active');
+    isAtTop = true;
+
+    clearTimeout(searchTimer);
+    cancelAnimationFrame(renderFrame);
+    renderFrame = requestAnimationFrame(() => renderResults(filterPoints('0')));
+}
+
+// вернуть поиск в центральное положение (для режимов all/point)
+function resetSearchView() {
+    const searchContainer = document.getElementById('searchContainer');
+    const resultsContainer = document.getElementById('resultsContainer');
+    if (!searchContainer || !resultsContainer) return;
+
+    searchContainer.classList.remove('top');
+    searchContainer.classList.add('center');
+    resultsContainer.classList.remove('active');
+    isAtTop = false;
 }
 
 // блок поиска
@@ -1101,6 +1150,11 @@ function actionIconMarkup(action) {
     return `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[action] || ''}</svg>`;
 }
 
+// иконка кофейной машины (одна на все режимы)
+function machineIconMarkup() {
+    return '<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14v9a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V8Z"/><path d="M9 8V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v3"/><path d="M9 13h6"/><path d="M10 16h4"/></svg>';
+}
+
 // блок карточки точки
 function cardHtml(item, idx) {
     const lockSnap = _lockSnapshot[String(item.id)] || { meter: null, order: null };
@@ -1149,8 +1203,8 @@ function cardHtml(item, idx) {
                 </div>
 
                 <div class="machine-cta">
-                    <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14v9a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V8Z"/><path d="M9 8V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v3"/><path d="M9 13h6"/><path d="M10 16h4"/></svg>
-                    <span>Показати залишки</span>
+                    ${machineIconMarkup()}
+                        <span>Показати залишки</span>
                     <svg class="machine-cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                 </div>
 
@@ -1215,8 +1269,8 @@ function cardHtml(item, idx) {
                         ${notes}
 
             ${searchMode === 'all' ? `
-                <div class="machine-cta" data-action="machines" data-id="${id}" role="button" tabindex="0">
-                    <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14v9a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V8Z"/><path d="M9 8V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v3"/><path d="M9 13h6"/><path d="M10 16h4"/></svg>
+            <div class="machine-cta" data-action="machines" data-id="${id}" role="button" tabindex="0">
+                 ${machineIconMarkup()}
                     <span>Показати залишки</span>
                     <svg class="machine-cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                 </div>
@@ -1544,7 +1598,7 @@ async function submitPayment() {
     };
 
     try {
-        const response = await postPayment(payload);
+        const response = await postJson('payment', payload);
         if (!response.ok) {
             const errText = await response.text();
             throw new Error((errText && errText.slice(0, 150)) || 'Помилка сервера 1С');
@@ -1653,7 +1707,7 @@ async function submitMeters() {
     }
 
     try {
-        const response = await postMeters(payload);
+        const response = await postJson('meters', payload);
 
         if (response.status === 409) {
             lockPoint(pointId);

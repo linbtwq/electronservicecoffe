@@ -1,13 +1,6 @@
 /* theme.css
    визуальный слой поверх style.css / ui.css / modals.css / mobile.css
-   подключается ПОСЛЕДНИМ в index.html
-   меняет только цвета, шрифты, радиусы, рамки и иерархию кнопок
-   вёрстку и размеры не трогает, поэтому mobile.css продолжает работать как раньше */
-
-/* ============================================================
-   палитра
-   тёмный лесной зелёный как основной цвет, кофейный коричневый для поповнення
-   ============================================================ */
+   подключается ПОСЛЕДНИМ в index.html */
 
 :root {
     --bg: #edf3f0;
@@ -101,7 +94,6 @@ body.dark-theme {
 
 body { font-family: var(--font-ui); }
 
-/* суммы и счётчики выравниваются по цифрам */
 .debt-value,
 .assort-row-price,
 .recount-deviation,
@@ -121,15 +113,16 @@ body { font-family: var(--font-ui); }
 }
 
 /* ============================================================
-   theme-only refinements
-   base layout is kept in style.css and ui.css
+   поиск и фильтры
    ============================================================ */
 
 .search-box input::placeholder { color: var(--text-muted); opacity: 0.8; }
 
 .drawer-menu-icon { width: 18px; height: 18px; }
+
 .theme-toggle .ui-icon,
 .cache-toggle .ui-icon { width: 17px; height: 17px; }
+
 .search-icon {
     display: grid;
     flex: 0 0 20px;
@@ -171,6 +164,20 @@ body.dark-theme .filter-chip.active {
 }
 
 body.dark-theme .filter-chip.active { color: #10271e; }
+
+/* режим "Машина" — поиск скрыт, остаются только фильтры */
+.search-container.machine-mode .search-box,
+.search-container.machine-mode .search-hint {
+    display: none;
+}
+
+.search-container.machine-mode .search-filters {
+    margin-top: 0;
+}
+
+/* ============================================================
+   карточка точки
+   ============================================================ */
 
 .point-card,
 body.dark-theme .point-card {
@@ -348,34 +355,46 @@ body.dark-theme .lock-badge {
 .modal-box {
     background: var(--surface-solid);
     border: 1px solid var(--border);
+    border-radius: 16px;
     box-shadow: var(--shadow-modal);
-}
-
-@media (min-width: 481px) {
-    .modal-box { border-radius: 14px; }
 }
 
 .modal-header { border-bottom: 1px solid var(--separator); }
 
-.modal-header h3 { font-weight: 750; letter-spacing: 0; }
+.modal-header h3 {
+    font-family: var(--font-display);
+    font-size: 1.24rem;
+    font-weight: 750;
+    letter-spacing: 0;
+}
 
 .modal-footer { border-top: 1px solid var(--separator); }
-
-.modal-box { border-radius: 16px; }
 
 .modal-header {
     align-items: center;
     padding: 18px 22px 16px;
 }
 
-.modal-header h3 {
-    font-family: var(--font-display);
-    font-size: 1.24rem;
-}
-
 .modal-body {
     background: var(--surface-2);
     scrollbar-color: var(--border) transparent;
+}
+
+.modal-footer {
+    padding: 14px 20px;
+    background: var(--surface);
+    box-shadow: 0 -5px 16px rgba(20, 55, 42, 0.035);
+}
+
+body.dark-theme .modal-footer { box-shadow: 0 -5px 16px rgba(0, 0, 0, 0.12); }
+
+.modal-close {
+    background: var(--surface-3);
+    color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .modal-close:hover { background: var(--border); color: var(--text-heading); }
 }
 
 #paymentAmount,
@@ -392,9 +411,7 @@ body.dark-theme .lock-badge {
     color: var(--text-heading);
 }
 
-#paymentOverlay .meter-input-group {
-    margin-top: 16px;
-}
+#paymentOverlay .meter-input-group { margin-top: 16px; }
 
 #paymentOverlay .meter-input-group > label {
     display: block;
@@ -404,25 +421,12 @@ body.dark-theme .lock-badge {
     color: var(--text-muted);
 }
 
-.modal-footer {
-    padding: 14px 20px;
-    box-shadow: 0 -6px 18px rgba(20, 55, 42, 0.045);
-}
-
-body.dark-theme .modal-footer { box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.16); }
-
-.modal-close {
-    background: var(--surface-3);
+.assort-sub {
     color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.8rem;
+    line-height: 1.4;
 }
-
-@media (hover: hover) and (pointer: fine) {
-    .modal-close:hover { background: var(--border); color: var(--text-heading); }
-}
-
-.assort-sub { color: var(--text-muted); font-weight: 500; }
-
-.assort-sub { font-size: 0.8rem; line-height: 1.4; }
 
 .assort-panel { gap: 12px; }
 
@@ -435,6 +439,7 @@ body.dark-theme .modal-footer { box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.16); }
     min-height: 28px;
     padding: 5px 9px;
     font-size: 0.73rem;
+    border-radius: 999px;
 }
 
 .assort-grid { gap: 9px; }
@@ -477,27 +482,6 @@ body.dark-theme .modal-footer { box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.16); }
     font-weight: 750;
 }
 
-.qty { gap: 5px; }
-
-.qty-btn {
-    border-radius: 9px;
-    background: var(--surface);
-    font-size: 1.2rem;
-    font-weight: 650;
-}
-
-.qty-input,
-.meter-input {
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    background: var(--surface);
-    color: var(--text-heading);
-    font-weight: 700;
-}
-
-.qty-input:focus,
-.meter-input:focus { box-shadow: 0 0 0 3px var(--primary-soft); }
-
 .confirm-summary { gap: 0; }
 
 .confirm-item { padding: 9px 0; }
@@ -511,13 +495,6 @@ body.dark-theme .confirm-summary {
     border-radius: var(--r);
 }
 
-.modal-header,
-.modal-footer { background: var(--surface); }
-
-.modal-footer { box-shadow: 0 -5px 16px rgba(20, 55, 42, 0.035); }
-
-body.dark-theme .modal-footer { box-shadow: 0 -5px 16px rgba(0, 0, 0, 0.12); }
-
 /* ============================================================
    поля ввода и строки в модалках
    ============================================================ */
@@ -527,12 +504,29 @@ body.dark-theme .modal-footer { box-shadow: 0 -5px 16px rgba(0, 0, 0, 0.12); }
     border-radius: var(--r);
 }
 
+.qty { gap: 5px; }
+
+.qty-btn {
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    font-size: 1.2rem;
+    font-weight: 650;
+}
+
 .qty-input,
 .meter-input,
 .meter-input-group input,
 .assort-search,
 .note-text {
     border-radius: var(--r-sm);
+}
+
+.qty-input,
+.meter-input {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-heading);
+    font-weight: 700;
 }
 
 .qty-input:focus,
@@ -545,11 +539,7 @@ body.dark-theme .modal-footer { box-shadow: 0 -5px 16px rgba(0, 0, 0, 0.12); }
     outline: none;
 }
 
-.qty-btn { border-radius: var(--r-sm); }
-
-.assort-pill { border-radius: 999px; }
-
-/* отклонение в перерасчёте: цвет несёт смысл */
+/* отклонение в перерасчёте */
 .recount-deviation.positive { color: var(--success); }
 .recount-deviation.negative { color: var(--danger); }
 .recount-deviation.zero     { color: var(--text-muted); }
@@ -581,31 +571,13 @@ body.dark-theme .note-chip.active { color: #07231c; }
 }
 
 /* ============================================================
-   Карточка точки в режиме "Машина" — кликабельная, без кнопок
+   карточка точки в режиме "Машина"
    ============================================================ */
 
-/* в режиме "Машина" при наведении на карточку — плашка становится зелёной */
-@media (hover: hover) and (pointer: fine) {
-    .point-card-machine:hover .machine-cta {
-        background: var(--primary);
-        color: #fff;
-    }
-}
-
-/* в остальных режимах — зелёный цвет только при наведении на саму плашку */
-@media (hover: hover) and (pointer: fine) {
-    .machine-cta:hover {
-        background: var(--primary);
-        color: #fff;
-    }
-}
-
-/* у machine-карточки grid без строки с долгом — поля растягиваются */
 .point-card-machine .point-grid {
     padding-bottom: 4px;
 }
 
-/* на десктопе карточка машины чуть просторнее и заголовок крупнее */
 @media (min-width: 900px) {
     .point-card-machine {
         padding: 22px 26px 24px;
@@ -649,7 +621,8 @@ body.dark-theme .note-chip.active { color: #07231c; }
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .point-card-machine:hover .machine-cta {
+    .point-card-machine:hover .machine-cta,
+    .machine-cta:hover {
         background: var(--primary);
         color: #fff;
     }

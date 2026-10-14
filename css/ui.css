@@ -361,7 +361,6 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
    левая выдвижная панель
    ============================================================ */
 
-/* основной цвет поверхности полупрозрачный, а панель должна быть сплошной */
 :root { --surface-solid: #ffffff; }
 body.dark-theme { --surface-solid: #111419; }
 
@@ -393,8 +392,7 @@ body.dark-theme { --surface-solid: #111419; }
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .drawer-handle:hover { background: var(--surface-2); }
-    .drawer-handle:hover { color: var(--primary); }
+    .drawer-handle:hover { background: var(--surface-2); color: var(--primary); }
 }
 
 body.drawer-open .drawer-handle {
@@ -666,7 +664,6 @@ body.drawer-open .drawer-handle {
     box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
-/* навигация папок */
 .dg-nav {
     display: flex;
     align-items: center;
@@ -707,7 +704,6 @@ body.drawer-open .drawer-handle {
     letter-spacing: -0.01em;
 }
 
-/* контейнер списка */
 #goodsList {
     padding: 0 10px 20px;
     display: flex;
@@ -727,7 +723,6 @@ body.drawer-open .drawer-handle {
     transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
-/* карточка папки */
 .dg-folder {
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -773,7 +768,6 @@ body.drawer-open .drawer-handle {
     line-height: 1;
 }
 
-/* карточка товара */
 .dg-item {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -796,6 +790,7 @@ body.drawer-open .drawer-handle {
     min-width: 0;
     display: flex;
     flex-direction: column;
+    gap: 2px;
 }
 
 .dg-name {
@@ -812,7 +807,6 @@ body.drawer-open .drawer-handle {
     font-weight: 400;
 }
 
-/* ччип / бейдж для кода товара */
 .dg-code-chip {
     flex: 0 0 auto;
     display: inline-flex;
@@ -855,7 +849,6 @@ body.dark-theme .dg-code-chip {
     color: var(--primary);
 }
 
-/* состояние пустой выдачи и ошибок */
 .dg-note {
     padding: 36px 16px;
     color: var(--text-muted);
@@ -863,5 +856,4 @@ body.dark-theme .dg-code-chip {
     text-align: center;
 }
 
-.dg-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .dg-price { font-size: 0.8rem; font-weight: 600; color: #16a34a; }
