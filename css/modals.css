@@ -4,11 +4,6 @@
    перерахунок + примітки + залишки
    ============================================================ */
 
-
-/* ============================================================
-   1. базове модальне вікно
-   ============================================================ */
-
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -53,13 +48,9 @@
     transform: translateY(0);
 }
 
-/* ширини конкретних модалок */
 .assort-box  { max-width: 640px; }
 .confirm-box { max-width: 420px; }
 .note-box    { max-width: 560px; }
-
-
-/* шапка модалки */
 
 .modal-header {
     display: flex;
@@ -112,9 +103,6 @@
     outline-offset: 2px;
 }
 
-
-/* тіло та підвал */
-
 .modal-body {
     flex: 1;
     min-height: 0;
@@ -133,9 +121,6 @@
     flex-shrink: 0;
 }
 
-
-/* заголовок асортименту всередині шапки */
-
 .assort-head {
     display: flex;
     flex-direction: column;
@@ -152,11 +137,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-
-
-/* ============================================================
-   2. спільні блоки підтвердження
-   ============================================================ */
 
 .confirm-summary {
     display: flex;
@@ -192,11 +172,6 @@
     margin: 0;
     padding-left: 18px;
 }
-
-
-/* ============================================================
-   3. асортимент / показники
-   ============================================================ */
 
 .assort-panel {
     display: flex;
@@ -250,9 +225,6 @@
     margin-left: 2px;
 }
 
-
-/* пошук у асортименті */
-
 .assort-top {
     margin-bottom: 12px;
 }
@@ -281,9 +253,6 @@
     box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
-
-/* офлайн-плашка */
-
 .assort-offline {
     margin-bottom: 12px;
     padding: 10px 14px;
@@ -294,9 +263,6 @@
     line-height: 1.4;
     font-weight: 500;
 }
-
-
-/* сітка рядків */
 
 .assort-grid {
     display: flex;
@@ -390,11 +356,6 @@
     font-size: 0.95rem;
 }
 
-
-/* ============================================================
-   4. qty-контрол (+/- та інпут)
-   ============================================================ */
-
 .qty {
     display: flex;
     align-items: stretch;
@@ -478,11 +439,6 @@ body.dark-theme .meter-input.error {
     color: var(--text-heading);
 }
 
-
-/* ============================================================
-   5. завантаження / помилки всередині модалок
-   ============================================================ */
-
 .assort-loading {
     padding: 8px 0;
 }
@@ -496,11 +452,6 @@ body.dark-theme .meter-input.error {
     font-size: 0.88rem;
     line-height: 1.4;
 }
-
-
-/* ============================================================
-   6. підвал замовлення (асортимент / перерахунок / примітка)
-   ============================================================ */
 
 .order-footer {
     justify-content: space-between;
@@ -519,11 +470,6 @@ body.dark-theme .meter-input.error {
     color: var(--text-heading);
     font-weight: 700;
 }
-
-
-/* ============================================================
-   7. перерахунок
-   ============================================================ */
 
 .recount-deviation {
     display: flex;
@@ -554,11 +500,6 @@ body.dark-theme .meter-input.error {
 .recount-deviation.zero {
     color: var(--text-muted);
 }
-
-
-/* ============================================================
-   8. примітки
-   ============================================================ */
 
 .note-new {
     padding: 14px;
@@ -717,11 +658,6 @@ body.dark-theme .meter-input.error {
     font-size: 0.88rem;
 }
 
-
-/* ============================================================
-   9. залишки
-   ============================================================ */
-
 .stock-list {
     display: flex;
     flex-direction: column;
@@ -779,11 +715,6 @@ body.dark-theme .meter-input.error {
     white-space: nowrap;
 }
 
-
-/* ============================================================
-   10. підказка "менше попереднього"
-   ============================================================ */
-
 .error-hint {
     display: none;
     font-size: 0.75rem;
@@ -793,11 +724,6 @@ body.dark-theme .meter-input.error {
 }
 
 .error-hint.show { display: block; }
-
-
-/* ============================================================
-   11. оптимізації
-   ============================================================ */
 
 .low-end .modal-overlay,
 .low-end .modal-box,
@@ -816,10 +742,6 @@ body.dark-theme .meter-input.error {
         transition: none;
     }
 }
-
-/* ============================================================
-   таблица остатков (модалка по машине)
-   ============================================================ */
 
 .stock-table {
     display: flex;
@@ -859,10 +781,6 @@ body.dark-theme .meter-input.error {
     text-align: right;
     white-space: nowrap;
 }
-
-/* ============================================================
-   ОСТАТКИ ПО ТОЧКЕ / МАШИНЕ
-   ============================================================ */
 
 .machines-box {
     max-width: 620px;
@@ -912,8 +830,6 @@ body.dark-theme .meter-input.error {
     white-space: nowrap;
 }
 
-/* --- тулбар: поиск + чипы + сортировка --- */
-
 .machines-toolbar {
     display: flex;
     flex-direction: column;
@@ -946,8 +862,6 @@ body.dark-theme .meter-input.error {
     background-color: var(--surface);
     box-shadow: 0 0 0 3px var(--primary-soft);
 }
-
-/* --- чипы фильтра --- */
 
 .machines-filters {
     display: flex;
@@ -1010,8 +924,6 @@ body.dark-theme .machines-filters { background: var(--surface-2); }
 body.dark-theme .mf-chip-count { background: rgba(255, 255, 255, 0.08); }
 body.dark-theme .mf-chip.active { color: #07231c; }
 body.dark-theme .mf-chip.active .mf-chip-count { background: rgba(0, 0, 0, 0.18); color: #07231c; }
-
-/* --- сортировка --- */
 
 .machines-sort {
     display: flex;
@@ -1127,16 +1039,12 @@ body.dark-theme .mf-chip.active .mf-chip-count { background: rgba(0, 0, 0, 0.18)
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* --- тело --- */
-
 .machines-body {
     padding: 16px 20px 20px;
     background: var(--surface-2);
 }
 
 .mt-loading { padding: 8px 0; }
-
-/* --- список --- */
 
 .mt-list {
     display: flex;
@@ -1243,7 +1151,6 @@ body.dark-theme .mf-chip.active .mf-chip-count { background: rgba(0, 0, 0, 0.18)
 .mt-row-qty.zero { background: var(--surface-3); color: var(--text-heading); font-weight: 700; }
 .mt-row-qty.neg  { background: var(--danger); color: #fff; }
 
-/* --- мобилка --- */
 @media (max-width: 480px) {
     #machinesOverlay.modal-overlay {
         align-items: flex-end;
@@ -1345,10 +1252,6 @@ body.dark-theme .mf-chip.active .mf-chip-count { background: rgba(0, 0, 0, 0.18)
     font-size: 0.95rem;
 }
 
-/* ============================================================
-   раскрывающийся блок остатков под карточкой (все режимы)
-   ============================================================ */
-
 .point-card .machine-expand {
     margin-top: 14px;
     padding-top: 14px;
@@ -1358,7 +1261,6 @@ body.dark-theme .mf-chip.active .mf-chip-count { background: rgba(0, 0, 0, 0.18)
 
 .point-card .machine-expand[hidden] { display: none; }
 
-/* при раскрытии — стрелочка вверх, CTA активнее */
 .point-card.machine-card-open .machine-cta-arrow {
     transform: rotate(180deg);
 }
@@ -1370,7 +1272,6 @@ body.dark-theme .mf-chip.active .mf-chip-count { background: rgba(0, 0, 0, 0.18)
 
 .machine-cta-arrow { transition: transform 0.25s var(--ease); }
 
-/* в раскрытом блоке тулбар прижимается к краям */
 .machine-expand .machines-toolbar {
     border-radius: var(--r);
     border: 1px solid var(--border);
@@ -1380,3 +1281,70 @@ body.dark-theme .mf-chip.active .mf-chip-count { background: rgba(0, 0, 0, 0.18)
 .machine-expand .mt-list { margin-top: 0; }
 
 .low-end .point-card .machine-expand { animation: none; }
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+}
+
+.empty-icon {
+    width: 44px;
+    height: 44px;
+    color: var(--text-muted);
+    opacity: 0.5;
+    flex: 0 0 auto;
+}
+
+.empty-text {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.45;
+    max-width: 320px;
+}
+
+/* ============================================================
+   тулбар остатков в одну строку на десктопе
+   ============================================================ */
+
+@media (min-width: 900px) {
+    .machine-expand .machines-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+    }
+
+    .machine-expand .machines-search-wrap { min-width: 0; }
+
+    .machine-expand .machines-filters {
+        flex-wrap: nowrap;
+        gap: 4px;
+        padding: 3px;
+        border-radius: 11px;
+    }
+
+    .machine-expand .mf-chip {
+        flex: 0 0 auto;
+        min-height: 32px;
+        padding: 5px 10px;
+        font-size: 0.76rem;
+    }
+
+    .machine-expand .mf-chip-count {
+        min-width: 18px;
+        height: 16px;
+        font-size: 0.66rem;
+    }
+
+    .machine-expand .machines-sort-label { display: none; }
+
+    .machine-expand .machines-sort-select {
+        min-height: 34px;
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+}

@@ -1,39 +1,48 @@
 /* toast, статус, тема, юзер, авторизация, успех, версия */
 
-/* ============================================================
-   toast
-   ============================================================ */
-
 .toast {
     position: fixed;
     top: -80px;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
     background: var(--success);
     color: #fff;
-    padding: 12px 22px;
+    padding: 12px 20px 12px 16px;
     border-radius: 999px;
     font-size: 0.9rem;
     font-weight: 600;
-    box-shadow: 0 10px 30px rgba(52, 199, 89, 0.35);
+    line-height: 1.2;
+    box-shadow: 0 10px 30px rgba(40, 124, 84, 0.35);
     z-index: 9999;
     pointer-events: none;
     max-width: calc(100vw - 40px);
     transition: top 0.4s var(--ease-bounce);
 }
 
+.toast::before {
+    content: '';
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/contain no-repeat;
+            mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
 .toast.error {
     background: var(--danger);
-    box-shadow: 0 10px 30px rgba(255, 59, 48, 0.35);
+    box-shadow: 0 10px 30px rgba(185, 67, 58, 0.35);
 }
 
-.toast.show {
-    top: 24px;
+.toast.error::before {
+    -webkit-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 8v5M12 16h.01'/%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E") center/contain no-repeat;
+            mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 8v5M12 16h.01'/%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 
-/* ============================================================
-   статус соединения
-   ============================================================ */
+.toast.show { top: 24px; }
 
 .connection-status {
     position: fixed;
@@ -54,9 +63,7 @@
     transition: border-color 0.2s ease, transform 0.1s ease;
 }
 
-.connection-status:active {
-    transform: scale(0.97);
-}
+.connection-status:active { transform: scale(0.97); }
 
 .status-dot {
     width: 9px;
@@ -106,10 +113,6 @@
 
 body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
 
-/* ============================================================
-   тема и юзер
-   ============================================================ */
-
 .theme-toggle {
     position: absolute;
     top: 20px; right: 20px;
@@ -129,14 +132,10 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .theme-toggle:hover {
-        transform: rotate(15deg) scale(1.06);
-    }
+    .theme-toggle:hover { transform: rotate(15deg) scale(1.06); }
 }
 
-.theme-toggle:active {
-    transform: rotate(-15deg) scale(0.9);
-}
+.theme-toggle:active { transform: rotate(-15deg) scale(0.9); }
 
 .user-badge {
     position: absolute;
@@ -164,10 +163,6 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
 
 .logout-btn:hover { color: var(--text-heading); }
 .logout-btn:active { transform: scale(0.95); }
-
-/* ============================================================
-   авторизация
-   ============================================================ */
 
 .auth-overlay {
     position: fixed;
@@ -241,10 +236,6 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     font-weight: 500;
 }
 
-/* ============================================================
-   успех
-   ============================================================ */
-
 .success-burst {
     position: fixed;
     inset: 0;
@@ -280,10 +271,6 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     animation: drawCheck 0.4s ease-out 0.2s forwards;
 }
 
-/* ============================================================
-   версия
-   ============================================================ */
-
 .app-version {
     position: fixed;
     bottom: 8px;
@@ -296,10 +283,6 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     z-index: 10;
     font-family: ui-monospace, monospace;
 }
-
-/* ============================================================
-   скроллбар на десктопе
-   ============================================================ */
 
 @media (hover: hover) and (pointer: fine) {
     .results-container {
@@ -316,10 +299,6 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
         border-radius: 3px;
     }
 }
-
-/* ============================================================
-   кнопка очистки кеша
-   ============================================================ */
 
 .cache-toggle {
     position: absolute;
@@ -342,24 +321,16 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .cache-toggle:hover {
-        transform: rotate(-20deg) scale(1.08);
-    }
+    .cache-toggle:hover { transform: rotate(-20deg) scale(1.08); }
 }
 
-.cache-toggle:active {
-    transform: scale(0.9);
-}
+.cache-toggle:active { transform: scale(0.9); }
 
 .cache-toggle:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
 }
-
-/* ============================================================
-   левая выдвижная панель
-   ============================================================ */
 
 :root { --surface-solid: #ffffff; }
 body.dark-theme { --surface-solid: #111419; }
@@ -616,7 +587,7 @@ body.drawer-open .drawer-handle {
 .low-end .drawer-handle { transition: none; }
 
 /* ============================================================
-   номенклатура внутри панели
+   НОМЕНКЛАТУРА В ПАНЕЛИ
    ============================================================ */
 
 .dg-title {
@@ -638,9 +609,7 @@ body.drawer-open .drawer-handle {
 }
 
 .dg-search {
-    position: sticky;
-    top: 0;
-    z-index: 5;
+    position: relative;
     padding: 4px 12px 10px;
     background: var(--surface-solid);
 }
@@ -648,7 +617,7 @@ body.drawer-open .drawer-handle {
 .dg-search input {
     width: 100%;
     min-height: 42px;
-    padding: 10px 14px;
+    padding: 10px 40px 10px 14px;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--surface-2);
@@ -662,6 +631,30 @@ body.drawer-open .drawer-handle {
     border-color: var(--primary);
     background: var(--surface);
     box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.dg-clear {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: var(--surface-3);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.dg-clear[hidden] { display: none; }
+.dg-clear svg { width: 12px; height: 12px; }
+.dg-clear:active { transform: translateY(-50%) scale(0.88); }
+@media (hover: hover) and (pointer: fine) {
+    .dg-clear:hover { background: var(--border); color: var(--text-heading); }
 }
 
 .dg-nav {

@@ -5,7 +5,7 @@ let goodsCurrentParent = '';
 let goodsSearchSeq = 0;
 let goodsTimer = null;
 let goodsAbortController = null;
-const goodsSearchCache = new Map(); // кеш попередніх пошукових фраз
+const goodsSearchCache = new Map();
 
 function goodsUrl(params) {
     const u = currentUser ? encodeURIComponent(currentUser.id) : '';
@@ -36,7 +36,6 @@ const goodsSkeleton = `
     </div>
 `;
 
-// ціна товару: "45,00 ₴"; якщо ціни немає, нічого не показуємо
 function goodsPriceHtml(it) {
     const p = Number(it.price);
     if (!p || p <= 0) return '';
@@ -51,7 +50,6 @@ function goodsIconMarkup(kind) {
     return `<svg class="dg-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 }
 
-// одна рядок товару, спільна для дерева та пошуку
 function goodsItemHtml(it) {
     const rawName = String(it.name || '').trim();
     const displayName = rawName.length ? rawName : 'Позиція без назви';
@@ -85,7 +83,6 @@ function goodsErrorHtml(err, withRetry) {
     `;
 }
 
-// каркас
 function initDrawerGoods() {
     const host = document.getElementById('drawerGoods');
     if (!host || host.dataset.ready) return;
@@ -96,23 +93,38 @@ function initDrawerGoods() {
         <div class="dg-search">
             <input type="search" id="goodsSearch" autocomplete="off"
                 placeholder="Пошук за назвою або кодом" aria-label="Пошук номенклатури">
+            <button type="button" class="dg-clear" id="goodsClear" aria-label="Очистити" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
         </div>
         <div class="dg-nav" id="goodsNav"></div>
-        <div id="goodsList"></div>
+        <div id="goodsList">${goodsSkeleton}</div>
     `;
 
-    // прив'язуємо пошук з debounce
     const searchInput = host.querySelector('#goodsSearch');
+    const clearBtn = host.querySelector('#goodsClear');
+
+    // прив'язуємо пошук з debounce
     if (searchInput) {
         searchInput.addEventListener('input', () => {
+            if (clearBtn) clearBtn.hidden = !searchInput.value;
             clearTimeout(goodsTimer);
             goodsTimer = setTimeout(goodsOnSearch, 250);
         });
     }
 
+    // кнопка очистки поиска
+    if (searchInput && clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.hidden = true;
+            goodsOnSearch();
+            searchInput.focus();
+        });
+    }
+
     // обробка кліків по списку
     host.querySelector('#goodsList').addEventListener('click', e => {
-        // копіювання коду по кліку
         const chip = e.target.closest('.dg-code-chip');
         if (chip) {
             e.stopPropagation();
@@ -145,7 +157,6 @@ function initDrawerGoods() {
     });
 }
 
-// викликається під час відкриття бічної панелі, щоб оновити вміст
 function refreshDrawerGoods() {
     initDrawerGoods();
 
@@ -156,7 +167,6 @@ function refreshDrawerGoods() {
     loadGoodsLevel('');
 }
 
-// завантаження дерева
 async function loadGoodsLevel(parentId) {
     const box = document.getElementById('goodsList');
     const navBox = document.getElementById('goodsNav');
@@ -176,7 +186,6 @@ async function loadGoodsLevel(parentId) {
     }
 }
 
-// назад
 function renderGoodsNav(breadcrumb) {
     const navBox = document.getElementById('goodsNav');
     if (!navBox) return;
@@ -195,7 +204,6 @@ function renderGoodsNav(breadcrumb) {
     `;
 }
 
-// рендер папок
 function renderGoodsItems(items) {
     const box = document.getElementById('goodsList');
     if (!box) return;
@@ -206,7 +214,6 @@ function renderGoodsItems(items) {
         return;
     }
 
-    // розділяємо папки і товари, щоб папки завжди були зверху
     const folders = items.filter(it => it.type === 'folder');
     const products = items.filter(it => it.type !== 'folder');
 
@@ -233,7 +240,6 @@ function renderGoodsItems(items) {
     box.innerHTML = html;
 }
 
-// пошук по номенклатурі
 async function goodsOnSearch() {
     const input = document.getElementById('goodsSearch');
     const box = document.getElementById('goodsList');
@@ -252,7 +258,6 @@ async function goodsOnSearch() {
 
     if (navBox) navBox.style.display = 'none';
 
-    // миттєва видача з кешу, якщо цей запит уже шукався
     if (goodsSearchCache.has(q)) {
         const cached = goodsSearchCache.get(q);
         renderGoodsSearchResults(cached.items, cached.truncated);
@@ -261,7 +266,6 @@ async function goodsOnSearch() {
 
     box.innerHTML = goodsSkeleton;
 
-    // скидаємо попередній незавершений HTTP-запит
     if (goodsAbortController) {
         goodsAbortController.abort();
     }
@@ -289,7 +293,7 @@ async function goodsOnSearch() {
         renderGoodsSearchResults(items, !!data.truncated);
         goodsRendered = false;
     } catch (err) {
-        if (err.name === 'AbortError') return; // ігноруємо штатну відміну
+        if (err.name === 'AbortError') return;
         if (seq !== goodsSearchSeq) return;
         box.innerHTML = goodsErrorHtml(err, false);
     }

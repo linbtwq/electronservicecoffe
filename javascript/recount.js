@@ -4,7 +4,6 @@ let recountLoading = false;
 let recountSending = false;
 let recountItems = [];
 let recountPointId = null;
-// один ідентифікатор на одне вікно, щоб повторне відправлення не створило дубль
 let recountRequestId = null;
 
 function ensureRecountModal() {
@@ -102,7 +101,7 @@ async function openRecountModal(pointId) {
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
 
         if (isStubResponse(data)) {
-            body.innerHTML = emptyStateHtml(data[0].Name);
+            body.innerHTML = emptyStateHtml(data[0].Name, '36px 20px', 'alert');
             return;
         }
 
@@ -113,6 +112,11 @@ async function openRecountModal(pointId) {
             book: Number(it.book) || 0,
             actual: Number(it.book) || 0
         }));
+
+        if (!recountItems.length) {
+            body.innerHTML = emptyStateHtml('Немає позицій для перерахунку', '36px 20px', 'box');
+            return;
+        }
 
         renderRecountBody();
     } catch (err) {
@@ -131,6 +135,12 @@ function renderRecountBody() {
             <div class="assort-pills" style="margin-top:0;">
                 <span class="assort-pill">${recountItems.length} поз.</span>
             </div>
+
+            <div class="recount-legend">
+                <span class="rl rl-pos">+ надлишок</span>
+                <span class="rl rl-neg">− недостача</span>
+            </div>
+
             <div id="recountGrid" class="assort-grid" style="margin-top:14px;">
                 ${recountItems.map((it, i) => {
                     return `
@@ -232,6 +242,8 @@ function updateRecountRow(row, idx) {
         devEl.className = cls;
         devEl.textContent = `${sign}${fmt(deviation)} шт · ${sign}${fmt(sumDeviation)} ₴`;
     }
+
+    row.classList.toggle('picked', deviation !== 0);
 }
 
 function updateRecountSummary() {
@@ -322,7 +334,6 @@ async function submitRecount() {
         let body = null;
         try { body = await res.json(); } catch (e) {}
 
-        // 1С возвращает conduct_error в 200-ответе, если документ записался, но не провёлся
         const raw = (body && body.conduct_error != null) ? String(body.conduct_error) : '';
         conductError = isBlankServerError(raw) ? '' : raw;
 

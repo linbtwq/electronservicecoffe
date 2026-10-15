@@ -101,7 +101,7 @@ async function openShipmentModal(pointId) {
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
 
         if (isStubResponse(data)) {
-            body.innerHTML = emptyStateHtml(data[0].Name);
+            body.innerHTML = emptyStateHtml(data[0].Name, '36px 20px', 'alert');
             return;
         }
 
@@ -112,6 +112,11 @@ async function openShipmentModal(pointId) {
             maxQty: Number(it.quantity) || 0,
             qty: 0
         }));
+
+        if (!shipmentItems.length) {
+            body.innerHTML = emptyStateHtml('На складі немає товарів', '36px 20px', 'box');
+            return;
+        }
 
         renderShipmentBody();
     } catch (err) {
