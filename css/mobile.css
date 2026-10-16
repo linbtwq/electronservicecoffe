@@ -1,4 +1,15 @@
-/* мобильная верстка и отключения для слабых устройств */
+/* ============================================================
+   mobile.css
+   назначение адаптация интерфейса к узким экранам и слабым устройствам
+   ответственность мобильные размеры, расположение и поведение элементов
+   ============================================================ */
+
+/* ============================================================
+   блок 1
+   мобильные экраны до 480 пикселей
+   тут задаются размеры под палец, нижние отступы под safe-area
+   и модалки выезжают снизу как шторки
+   ============================================================ */
 
 @media (max-width: 480px) {
     :root {
@@ -23,6 +34,7 @@
         width: calc(100% - 24px);
     }
 
+    /* кнопки темы и кеша в правом верхнем углу */
     .theme-toggle {
         top: max(8px, env(safe-area-inset-top));
         right: 12px;
@@ -125,6 +137,7 @@
         padding: 4px 10px;
     }
 
+    /* на мобилке сетка данных в две колонки */
     .point-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px 12px;
@@ -168,6 +181,7 @@
     .info-item label { font-size: 0.66rem; letter-spacing: 0.05em; }
     .info-item span  { font-size: 0.9rem; overflow-wrap: anywhere; }
 
+    /* кнопки карточки в три колонки, первая на всю ширину */
     .card-actions {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 6px;
@@ -224,6 +238,7 @@
         font-size: 0.88rem;
     }
 
+    /* компактная карточка машины */
     .point-card-machine {
         padding: 14px 14px 12px;
         gap: 10px;
@@ -244,6 +259,7 @@
         text-overflow: clip;
     }
 
+    /* индикатор связи */
     .connection-status {
         bottom: max(10px, env(safe-area-inset-bottom));
         left: 10px;
@@ -266,6 +282,7 @@
 
     .app-version { display: none; }
 
+    /* модалки выезжают снизу как шторки */
     .modal-overlay {
         align-items: flex-end;
         padding: 0;
@@ -287,6 +304,7 @@
         transform: translateY(0);
     }
 
+    /* полоска сверху шторки, декоративная */
     .modal-box::before {
         content: '';
         position: absolute;
@@ -301,6 +319,7 @@
         pointer-events: none;
     }
 
+    /* заголовок липкий чтобы кнопка закрытия была под рукой */
     .modal-header {
         position: sticky;
         top: 0;
@@ -342,6 +361,7 @@
         border-radius: 12px;
     }
 
+    /* строки ассортимента */
     .assort-row { padding: 14px 14px; }
 
     .assort-row-fields {
@@ -353,6 +373,7 @@
         grid-column: 1 / -1;
     }
 
+    /* поля и кнопки количества, размеры под палец */
     .qty .qty-input,
     .qty .meter-input,
     .meter-input-group input {
@@ -399,6 +420,7 @@
 
     .assort-pill { font-size: 0.72rem; min-height: 26px; }
 
+    /* форма входа */
     .auth-box { padding: 26px 22px; }
     .pin-input {
         font-size: 1.6rem;
@@ -406,13 +428,15 @@
         letter-spacing: 14px;
     }
 
+    /* строки остатков */
     .stock-row { padding: 13px 14px; }
     .stock-name { font-size: 0.92rem; }
     .stock-qty  { font-size: 1rem; padding: 5px 12px; }
 }
 
 /* ============================================================
-   ПЛАНШЕТ
+   блок 2
+   планшеты от 481 до 899 пикселей
    ============================================================ */
 
 @media (min-width: 481px) and (max-width: 899px) {
@@ -468,7 +492,9 @@
 }
 
 /* ============================================================
-   ОЧЕНЬ УЗКИЕ ЭКРАНЫ
+   блок 3
+   очень узкие экраны до 360 пикселей
+   уменьшаем размеры контролов количества
    ============================================================ */
 
 @media (max-width: 360px) {
@@ -501,7 +527,9 @@
 }
 
 /* ============================================================
-   TOAST НА МОБИЛЬНОМ
+   блок 4
+   тост на мобильном
+   прижимаем к верху под safe-area
    ============================================================ */
 
 @media (max-width: 480px) {
@@ -521,7 +549,10 @@
 }
 
 /* ============================================================
-   ОТКЛЮЧЕНИЯ НА СЛАБЫХ УСТРОЙСТВАХ
+   блок 5
+   отключения на слабых устройствах и в скрытой вкладке
+   если body.is-hidden анимации на паузе
+   если results container в скролле transition отключен
    ============================================================ */
 
 body.is-hidden *,
@@ -534,6 +565,7 @@ body.is-hidden *::after {
     transition: none !important;
 }
 
+/* на слабых устройствах отключаем все анимации интерфейса */
 .low-end .modal-overlay { transition: none; }
 .low-end .modal-box {
     transition: none;
@@ -560,6 +592,7 @@ body.is-hidden *::after {
 .low-end .empty-state,
 .low-end .show-more-wrap { animation: none; }
 
+/* если пользователь просил уменьшить движение, гасим всё */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;

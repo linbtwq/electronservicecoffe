@@ -1,8 +1,41 @@
-// асортимент і замовлення поповнення
+// ============================================================
+// assortments.js
+//
+// назначение
+// этот файл отвечает за просмотр ассортимента и заказ пополнения точки.
+//
+// ответственность
+// - загрузить список товаров для точки
+// - дать пользователю собрать заказ
+// - посчитать итоги заказа
+// - отправить документ заказа в 1с
+//
+// особенности
+// если сети нет, показываем сохранённый ассортимент из indexedDB.
+// заказывать в офлайне нельзя, кнопка отправки появится только онлайн.
+//
+// зависимости
+// - globalData из script.js даёт точки
+// - fetchWithTimeout, newRequestId, showToast, escapeHtml из script.js
+// - setBtnLoading и resetBtn из script.js
+// - isStubResponse и emptyStateHtml из script.js
+// - qtyControlHtml из script.js
+// - localDB из script.js для кеша ассортимента
+//
+// порядок подключения
+// index.html подключает assortments.js после script.js
+// ============================================================
 
+// флаги и объект состояния текущего заказа
 let assortLoading = false;
 let orderSending = false;
 
+// текущий заказ пользователя
+// pointId это точка
+// qty это словарь код на количество
+// items это словарь код на название и цену
+// requestId защищает от дублей на сервере
+// canOrder показывает разрешён ли заказ
 const order = {
     pointId: null,
     qty: {},
@@ -11,6 +44,7 @@ const order = {
     canOrder: false
 };
 
+// сброс заказа в начальное состояние
 function resetOrder() {
     order.pointId = null;
     order.qty = {};
@@ -18,6 +52,14 @@ function resetOrder() {
     order.requestId = null;
     order.canOrder = false;
 }
+
+// ============================================================
+// блок 1. создание окна ассортимента
+//
+// окно создаётся один раз.
+// тело заполняется отдельно в renderAssortBody.
+// футер по умолчанию скрыт, показывается только если заказ разрешён.
+// ============================================================
 
 function ensureAssortModal() {
     let el = document.getElementById('assortOverlay');
@@ -50,8 +92,11 @@ function ensureAssortModal() {
 
     document.body.appendChild(el);
 
+    // кнопка крестика закрывает окно
     el.querySelector('.modal-close').addEventListener('click', closeAssortModal);
+    // кнопка заказа открывает окно подтверждения
     el.querySelector('#orderSendBtn').addEventListener('click', showOrderConfirm);
+    // нажатие вне окна закрывает форму
     el.addEventListener('click', (e) => {
         if (e.target === el) closeAssortModal();
     });
@@ -59,7 +104,16 @@ function ensureAssortModal() {
     return el;
 }
 
+// ============================================================
+// блок 2. загрузка ассортимента
+//
+// сначала пробуем сеть.
+// если сети нет достаём сохранённый ассортимент из indexedDB.
+// если и там пусто бросаем ошибку.
+// ============================================================
+
 async function loadPointAssortment(pointId) {
+    // ключ под которым кешируется ассортимент точки
     const key = `assortment_${pointId}`;
 
     try {
@@ -74,10 +128,12 @@ async function loadPointAssortment(pointId) {
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
 
+        // кладём в кеш на будущее
         try { await localDB.save(key, data); } catch (e) {}
 
         return { data, offline: false };
     } catch (err) {
+        // сеть не ответила, пробуем кеш
         try {
             const cached = await localDB.load(key);
             if (Array.isArray(cached)) {
@@ -89,7 +145,13 @@ async function loadPointAssortment(pointId) {
     }
 }
 
-// замовлення
+// ============================================================
+// блок 3. расчёт итогов заказа
+//
+// считает количество позиций и общую сумму.
+// используется в подвале окна и в окне подтверждения.
+// ============================================================
+
 function orderTotals() {
     let count = 0;
     let sum = 0;
@@ -105,12 +167,20 @@ function orderTotals() {
     return { count, sum };
 }
 
+// ============================================================
+// блок 4. обновление подвала окна
+//
+// подвал показывается только если заказ разрешён.
+// если позиции не выбраны, кнопка отправки заблокирована.
+// ============================================================
+
 function updateOrderBar() {
     const summary = document.getElementById('orderSummary');
     const btn = document.getElementById('orderSendBtn');
 
     if (!summary || !btn) return;
 
+    // в офлайне заказывать нельзя, подвал скрыт
     if (!order.canOrder) {
         summary.style.display = 'none';
         btn.style.display = 'none';
@@ -129,6 +199,17 @@ function updateOrderBar() {
     btn.disabled = orderSending || count === 0;
 }
 
+// ============================================================
+// блок 5. установка количества по позиции
+//
+// код это код товара.
+// значение обрезается до диапазона от нуля до 9999.
+// при нуле запись удаляется из словаря заказа.
+//
+// syncInput нужен чтобы отличить клик по кнопке от ручного ввода.
+// при клике инпут нужно обновить, при вводе нет.
+// ============================================================
+
 function setQty(code, value, tile, syncInput) {
     const q = Math.max(0, Math.min(9999, Math.floor(Number(value) || 0)));
 
@@ -138,14 +219,17 @@ function setQty(code, value, tile, syncInput) {
         delete order.qty[code];
     }
 
+    // сбрасываем requestId потому что состав заказа изменился
     order.requestId = null;
     tile.classList.toggle('picked', q > 0);
 
+    // обновляем инпут если это клик по кнопке
     if (syncInput) {
         const inp = tile.querySelector('.qty-input');
         if (inp) inp.value = q;
     }
 
+    // пересчитываем сумму по строке
     const totalEl = tile.querySelector('.assort-row-total');
     if (totalEl) {
         const price = Number(tile.dataset.price) || 0;
@@ -155,20 +239,35 @@ function setQty(code, value, tile, syncInput) {
     updateOrderBar();
 }
 
+// ============================================================
+// блок 6. отправка заказа в 1с
+//
+// порядок такой
+// 1. проверяем флаги и наличие позиций
+// 2. отсекаем отправку без сети
+// 3. собираем payload с request_id
+// 4. блокируем форму и показываем загрузку
+// 5. отправляем post на /orders
+// 6. проверяем поле conduct_error в ответе
+// ============================================================
+
 async function submitOrder() {
+    // защита от двойного клика или от отправки пустого заказа
     if (orderSending || !order.canOrder) return;
 
     const { count, sum } = orderTotals();
     if (!count) return;
 
+    // заказ только онлайн
     if (!navigator.onLine) {
         showToast('Немає мережі! Замовлення можна відправити лише онлайн.', true);
         return;
     }
 
-    // зберігаємо id точки до resetOrder, щоб не втратити її
+    // сохраняем точку до сброса формы
     const pointId = order.pointId;
 
+    // собираем позиции из словаря
     const items = Object.keys(order.qty).map(code => ({
         code,
         name: order.items[code].name,
@@ -176,6 +275,7 @@ async function submitOrder() {
         price: order.items[code].price
     }));
 
+    // request_id либо уже созданный либо новый
     order.requestId = order.requestId || newRequestId();
 
     const payload = {
@@ -189,6 +289,7 @@ async function submitOrder() {
     const btn = document.getElementById('orderSendBtn');
     const closeBtn = document.querySelector('#assortOverlay .modal-close');
 
+    // блокируем форму на время отправки
     orderSending = true;
     if (closeBtn) closeBtn.disabled = true;
     setBtnLoading(btn, 'Відправка...');
@@ -204,6 +305,7 @@ async function submitOrder() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    // код курьера уходит и в заголовке и в теле
                     'X-User-Code': currentUser ? currentUser.id : ''
                 },
                 body: JSON.stringify(payload)
@@ -219,6 +321,8 @@ async function submitOrder() {
         let body = null;
         try { body = await res.json(); } catch (e) {}
 
+        // 1с может ответить 200 но с полем conduct_error
+        // это значит что документ создан но не проведён
         if (body && body.conduct_error != null) {
             const raw = String(body.conduct_error);
             if (!isBlankServerError(raw)) conductError = raw;
@@ -237,6 +341,7 @@ async function submitOrder() {
         resetBtn(btn, 'Замовити');
 
         if (success) {
+            // отдельно сообщаем если документ не проведён
             if (conductError) {
                 console.error('[1С] замовлення не проведено:', conductError);
                 showToast('Замовлення створено, але НЕ ПРОВЕДЕНО: ' + conductError.slice(0, 150), true);
@@ -245,25 +350,37 @@ async function submitOrder() {
                 showToast(`Замовлення відправлено: ${count} поз. на ${fmt(finalSum)} ₴`);
             }
 
+            // чистим состояние и закрываем окна
             resetOrder();
-
             document.getElementById('orderConfirmOverlay')?.classList.remove('active');
             closeAssortModal();
 
+            // тихо тянем свежие данные
             loadData({ silent: true });
         } else {
+            // отправка не прошла, оставляем форму как есть
             updateOrderBar();
         }
     }
 }
 
-// отрисовка тела модалки
+// ============================================================
+// блок 7. отрисовка тела модалки
+//
+// первое это пилюля с количеством позиций и диапазоном цен.
+// второе это информационная плашка если офлайн.
+// третье это список строк с ценами и контролом количества.
+//
+// после отрисовки вешаем поиск и обработчики на строки.
+// ============================================================
 
 function renderAssortBody(data, offline) {
     const body = document.getElementById('assortBody');
 
+    // по умолчанию заказ запрещён
     order.canOrder = false;
 
+    // заглушка от 1с
     if (isStubResponse(data)) {
         body.innerHTML = emptyStateHtml(data[0].Name);
         updateOrderBar();
@@ -276,9 +393,11 @@ function renderAssortBody(data, offline) {
         return;
     }
 
+    // заказ разрешён только онлайн
     order.canOrder = !offline;
     order.items = {};
 
+    // сохраняем справочник товаров в состоянии заказа
     data.forEach(it => {
         const code = String(it.Code);
         order.items[code] = {
@@ -287,6 +406,7 @@ function renderAssortBody(data, offline) {
         };
     });
 
+    // считаем диапазон цен для пилюли
     const prices = data.map(i => Number(i.price) || 0);
     const min = Math.min(...prices);
     const max = Math.max(...prices);
@@ -295,6 +415,7 @@ function renderAssortBody(data, offline) {
         ? `${fmt(min)} ₴`
         : `${fmt(min)}–${fmt(max)} ₴`;
 
+    // поиск показываем только если позиций много
     const showSearch = data.length > 8;
 
     body.innerHTML = `
@@ -387,7 +508,7 @@ function renderAssortBody(data, offline) {
         </div>
     `;
 
-    // поиск
+    // фильтрация позиций по названию
     const input = document.getElementById('assortSearch');
     if (input) {
         input.addEventListener('input', () => {
@@ -409,13 +530,13 @@ function renderAssortBody(data, offline) {
         });
     }
 
-    // кнопки + / -
     const grid = document.getElementById('assortGrid');
     if (!grid) {
         updateOrderBar();
         return;
     }
 
+    // клик по кнопкам плюс и минус
     grid.addEventListener('click', e => {
         const btn = e.target.closest('.qty-btn');
         if (!btn) return;
@@ -433,19 +554,20 @@ function renderAssortBody(data, offline) {
         );
     });
 
-    // ручной ввод
+    // ручной ввод количества
     grid.addEventListener('input', e => {
         if (!e.target.classList.contains('qty-input')) return;
 
         const tile = e.target.closest('.assort-row');
         if (!tile) return;
 
+        // только цифры, не больше четырёх знаков
         e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
 
         setQty(tile.dataset.code, e.target.value, tile, false);
     });
 
-    // возврат значения при уходе из поля
+    // при уходе из поля нормализуем значение
     grid.addEventListener('focusout', e => {
         if (!e.target.classList.contains('qty-input')) return;
 
@@ -458,7 +580,9 @@ function renderAssortBody(data, offline) {
     updateOrderBar();
 }
 
-// скелетон
+// ============================================================
+// блок 8. скелетон загрузки
+// ============================================================
 
 function assortSkeleton() {
     return `
@@ -471,7 +595,16 @@ function assortSkeleton() {
     `;
 }
 
-// открытие модалки
+// ============================================================
+// блок 9. открытие окна ассортимента
+//
+// порядок такой
+// 1. ищем точку в общем списке
+// 2. сбрасываем состояние заказа
+// 3. заполняем шапку и показываем скелетон
+// 4. показываем окно
+// 5. грузим ассортимент и рендерим тело
+// ============================================================
 
 async function openAssortModal(pointId) {
     const point = globalData.find(i => String(i.id) === String(pointId));
@@ -482,13 +615,13 @@ async function openAssortModal(pointId) {
 
     const overlay = ensureAssortModal();
 
+    // сбрасываем состояние прошлого заказа
     resetOrder();
-
     order.pointId = point.id;
 
     updateOrderBar();
 
-    // шапка: точка · код · машина
+    // показываем название точки и установленную машину
     const subParts = [point.point_name || 'Точка', `код ${point.id}`];
     if (point.coffee_machine) {
         subParts.push(point.coffee_machine + (point.coffee_machine_code ? ` (${point.coffee_machine_code})` : ''));
@@ -504,7 +637,6 @@ async function openAssortModal(pointId) {
     try {
         const { data, offline } = await loadPointAssortment(point.id);
         renderAssortBody(data, offline);
-
     } catch (err) {
         const message = err && err.message ? err.message : String(err);
 
@@ -521,7 +653,12 @@ async function openAssortModal(pointId) {
     }
 }
 
-// закрытие модалки
+// ============================================================
+// блок 10. закрытие окна
+//
+// во время отправки окно не закрывается.
+// после закрытия сбрасываем состояние заказа.
+// ============================================================
 
 function closeAssortModal() {
     if (orderSending) return;
@@ -535,7 +672,10 @@ function closeAssortModal() {
 }
 
 // ============================================================
-// МОДАЛКА ПІДТВЕРДЖЕННЯ ЗАМОВЛЕННЯ
+// блок 11. окно подтверждения заказа
+//
+// показываем количество позиций и общую сумму.
+// кнопка назад возвращает к списку, кнопка отправить отправляет.
 // ============================================================
 
 function ensureOrderConfirmModal() {
@@ -588,6 +728,7 @@ function ensureOrderConfirmModal() {
     return el;
 }
 
+// показ окна подтверждения с актуальными цифрами
 function showOrderConfirm() {
     if (orderSending || !order.canOrder) return;
 
@@ -602,6 +743,7 @@ function showOrderConfirm() {
     el.classList.add('active');
 }
 
+// закрытие окна подтверждения
 function closeOrderConfirmModal() {
     if (orderSending) return;
     document.getElementById('orderConfirmOverlay')?.classList.remove('active');

@@ -1,40 +1,78 @@
-// javascript/machines.js
-// раскрывающийся inline-блок остатков под карточкой точки (без модалки)
+// ============================================================
+// machines.js
 //
-// состояние одного активного блока: держим его в памяти,
-// при клике на другую карточку закрываем предыдущий
-// и открываем новый — иначе фильтры/поиск запутаются
+// назначение
+// этот файл отвечает за встроенный блок остатков по автоматам.
+//
+// ответственность
+// - открыть блок остатков под карточкой точки
+// - загрузить список товаров и количеств с сервера
+// - дать пользователю поиск, фильтр и сортировку
+// - показать итоги по складу
+//
+// особенность
+// одновременно открыт только один блок.
+// при выборе другой точки предыдущий закрывается.
+//
+// зависимости
+// - fetchWithTimeout, showToast, escapeHtml, fmt из script.js
+// - isStubResponse и emptyStateHtml из script.js
+// - currentUser и apiBase из script.js
+//
+// порядок подключения
+// index.html подключает machines.js после script.js
+// ============================================================
+
+// ============================================================
+// блок 1. состояние открытого блока
+//
+// вся информация об открытом блоке собрана в одном объекте.
+// когда блок закрывается _me обнуляется.
+// когда карточка перерисовывается ссылка на неё может пропасть
+// поэтому в начале toggleMachineExpand есть проверка isConnected.
+// ============================================================
 
 let _me = null;
-// _me = { pointId, card, box, data, query, filter, sort }
+
+// ============================================================
+// блок 2. открытие и переключение блока
+//
+// если блок уже открыт для этой же точки, повторный вызов закрывает его.
+// если открыт для другой точки, старый закрывается и открывается новый.
+//
+// ответ от сервера приходит асинхронно.
+// важно проверить что _me всё ещё существует и указывает на ту же точку.
+// иначе ответ от старого запроса может перезаписать новый блок.
+// ============================================================
 
 async function toggleMachineExpand(pointId) {
     const pid = String(pointId);
 
-    // если карточка была перерисована (поиск, фильтр, автообновление), сбрасываем старую ссылку
+    // сбрасываем ссылку если список карточек уже перерисован
     if (_me && (!_me.card || !_me.card.isConnected)) {
         _me = null;
     }
 
-    // ищем карточку в любом режиме (Всі / Точка / Машина)
+    // находим карточку независимо от режима поиска
     const card = Array
         .from(document.querySelectorAll('.point-card'))
         .find(el => el.dataset.id === pid);
 
     if (!card) return;
 
-    // клик по той же карточке — закрываем
+    // повторное нажатие закрывает текущий блок
     if (_me && _me.pointId === pid) {
         closeMachineExpand();
         return;
     }
 
-    // была открыта другая — закрываем её
+    // перед открытием закрываем блок другой точки
     if (_me) closeMachineExpand();
 
     const box = card.querySelector('.machine-expand');
     if (!box) return;
 
+    // показываем блок и скелетон на время загрузки
     box.hidden = false;
     card.classList.add('machine-card-open');
     box.innerHTML = `
@@ -45,6 +83,7 @@ async function toggleMachineExpand(pointId) {
         </div>
     `;
 
+    // собираем состояние нового блока
     _me = {
         pointId: pid,
         card,
@@ -56,6 +95,7 @@ async function toggleMachineExpand(pointId) {
     };
 
     try {
+        // запрашиваем список остатков по всем автоматам
         const u = currentUser ? encodeURIComponent(currentUser.id) : '';
         const res = await fetchWithTimeout(
             `${apiBase}/machines?u=${u}&t=${Date.now()}`,
@@ -67,29 +107,41 @@ async function toggleMachineExpand(pointId) {
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
 
-        // пользователь мог закрыть блок или открыть другой, пока шёл запрос
+        // игнорируем ответ если блок уже закрыт или переключен
         if (!_me || _me.pointId !== pid) return;
 
+        // заглушка от 1с, например точка не настроена
         if (isStubResponse(data)) {
             box.innerHTML = emptyStateHtml(data[0].Name, '24px 16px');
             return;
         }
 
+        // список пустой
         if (!data.length) {
             box.innerHTML = emptyStateHtml('Залишки відсутні', '24px 16px');
             return;
         }
 
+        // сохраняем данные и рендерим панель с фильтрами и списком
         _me.data = data;
         renderMachineExpand();
 
     } catch (err) {
         const message = err && err.message ? err.message : String(err);
+        // ошибку показываем только если блок всё ещё актуален
         if (_me && _me.pointId === pid) {
             box.innerHTML = `<div class="assort-error" style="margin:0;">Не вдалося завантажити: ${escapeHtml(message)}</div>`;
         }
     }
 }
+
+// ============================================================
+// блок 3. закрытие блока
+//
+// скрываем контейнер, очищаем разметку и сбрасываем состояние.
+// класс machine-card-open на карточке нужен для поворота стрелки
+// и смены цвета кнопки.
+// ============================================================
 
 function closeMachineExpand() {
     if (!_me) return;
@@ -105,11 +157,20 @@ function closeMachineExpand() {
     _me = null;
 }
 
-// первичный рендер: тулбар (поиск/чипы/сортировка) + список
+// ============================================================
+// блок 4. отрисовка панели с фильтрами и поиском
+//
+// сверху идёт поиск по названию и коду.
+// ниже идут фильтры по наличию и количеству.
+// ещё ниже сортировка через выпадающее меню.
+// в самом низу контейнер списка который обновляется отдельно.
+// ============================================================
+
 function renderMachineExpand() {
     if (!_me) return;
     const { box, data } = _me;
 
+    // считаем счётчики для фильтров
     const total   = data.length;
     const cntIn   = data.filter(it => (Number(it.quantity) || 0) > 0).length;
     const cntZero = data.filter(it => (Number(it.quantity) || 0) === 0).length;
@@ -155,14 +216,14 @@ function renderMachineExpand() {
         <div data-me="list"></div>
     `;
 
-    // поиск
+    // фильтрация по названию и коду товара
     const searchInput = box.querySelector('[data-me="search"]');
     searchInput.addEventListener('input', () => {
         _me.query = searchInput.value.trim().toLowerCase();
         renderMachineList();
     });
 
-    // чипы фильтра
+    // переключение фильтра наличия
     const filtersBox = box.querySelector('[data-me="filters"]');
     filtersBox.addEventListener('click', (e) => {
         const chip = e.target.closest('.mf-chip');
@@ -172,7 +233,7 @@ function renderMachineExpand() {
         renderMachineList();
     });
 
-    // сортировка
+    // меню сортировки
     const sortControl = box.querySelector('.machines-sort-control');
     const sortBtn     = box.querySelector('[data-me="sort-btn"]');
     const sortMenu    = box.querySelector('[data-me="sort-menu"]');
@@ -190,16 +251,19 @@ function renderMachineExpand() {
         sortBtn.setAttribute('aria-expanded', 'true');
     };
 
+    // клик по кнопке открывает или закрывает меню
     sortBtn.addEventListener('click', () => {
         if (sortMenu.hidden) openSortMenu();
         else closeSortMenu();
     });
 
+    // выбор варианта сортировки
     sortMenu.addEventListener('click', (e) => {
         const option = e.target.closest('.machines-sort-option');
         if (!option) return;
         _me.sort = option.dataset.sort;
 
+        // обновляем визуально выбранный вариант
         sortMenu.querySelectorAll('.machines-sort-option').forEach(item => {
             const selected = item === option;
             item.classList.toggle('active', selected);
@@ -210,7 +274,7 @@ function renderMachineExpand() {
         renderMachineList();
     });
 
-    // клик снаружи меню сортировки — закрыть
+    // клик вне меню закрывает его
     box.addEventListener('click', (e) => {
         if (!e.target.closest('.machines-sort-control')) closeSortMenu();
     });
@@ -218,7 +282,18 @@ function renderMachineExpand() {
     renderMachineList();
 }
 
-// рендер только списка — при фильтрации/поиске/сортировке
+// ============================================================
+// блок 5. отрисовка списка после фильтрации и сортировки
+//
+// порядок такой
+// 1. копируем массив данных
+// 2. применяем фильтр по количеству
+// 3. применяем поиск по названию и коду
+// 4. сортируем по выбранному варианту
+// 5. считаем итоги
+// 6. рисуем строки и подвал с итогами
+// ============================================================
+
 function renderMachineList() {
     if (!_me) return;
     const listBox = _me.box.querySelector('[data-me="list"]');
@@ -226,10 +301,12 @@ function renderMachineList() {
 
     let list = _me.data.slice();
 
+    // фильтр по количеству
     if (_me.filter === 'in')   list = list.filter(it => (Number(it.quantity) || 0) > 0);
     if (_me.filter === 'zero') list = list.filter(it => (Number(it.quantity) || 0) === 0);
     if (_me.filter === 'neg')  list = list.filter(it => (Number(it.quantity) || 0) < 0);
 
+    // поиск по названию и коду
     if (_me.query) {
         list = list.filter(it => {
             const name = String(it.Name || '').toLowerCase();
@@ -238,6 +315,7 @@ function renderMachineList() {
         });
     }
 
+    // сортировка
     if (_me.sort === 'name') {
         list.sort((a, b) => String(a.Name || '').localeCompare(String(b.Name || ''), 'uk'));
     } else if (_me.sort === 'qty_desc') {
@@ -250,11 +328,13 @@ function renderMachineList() {
         list.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
     }
 
+    // пустой результат
     if (!list.length) {
         listBox.innerHTML = emptyStateHtml('Нічого не знайдено', '24px 16px');
         return;
     }
 
+    // считаем итоги по всему списку
     let sumQty = 0;
     let sumMoney = 0;
     list.forEach(it => {
@@ -264,6 +344,8 @@ function renderMachineList() {
         sumMoney += q * p;
     });
 
+    // каждая строка получает класс по знаку количества
+    // плюс класс это has, ноль это zero, минус это neg
     listBox.innerHTML = `
         <div class="mt-list">
             ${list.map((it, index) => {

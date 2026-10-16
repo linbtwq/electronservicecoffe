@@ -1,4 +1,15 @@
-/* toast, статус, тема, юзер, авторизация, успех, версия */
+/* ============================================================
+   ui.css
+   назначение общие элементы интерфейса
+   ответственность тосты, статус связи, тема, авторизация
+   и служебные блоки вроде боковой панели и каталога
+   ============================================================ */
+
+/* ============================================================
+   блок 1
+   тост, всплывающее уведомление сверху
+   показывается классом show, скрывается через три с половиной секунды
+   ============================================================ */
 
 .toast {
     position: fixed;
@@ -22,6 +33,7 @@
     transition: top 0.4s var(--ease-bounce);
 }
 
+/* иконка галочки через маску */
 .toast::before {
     content: '';
     flex: 0 0 18px;
@@ -32,6 +44,7 @@
             mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 
+/* вариант тоста для ошибки */
 .toast.error {
     background: var(--danger);
     box-shadow: 0 10px 30px rgba(185, 67, 58, 0.35);
@@ -43,6 +56,12 @@
 }
 
 .toast.show { top: 24px; }
+
+/* ============================================================
+   блок 2
+   индикатор связи
+   три состояния, online, offline и has-queue
+   ============================================================ */
 
 .connection-status {
     position: fixed;
@@ -106,12 +125,18 @@
     transition: transform 0.3s ease;
 }
 
+/* очередь и синхронизация подсвечивают индикатор */
 .connection-status.has-queue { border-color: #f59e0b; }
 .connection-status.has-queue .status-text { color: #b45309; }
 .connection-status.syncing .refresh-icon { animation: spin 0.9s linear infinite; }
 .connection-status.syncing { border-color: var(--primary); }
 
 body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
+
+/* ============================================================
+   блок 3
+   кнопки темы и очистки кеша
+   ============================================================ */
 
 .theme-toggle {
     position: absolute;
@@ -136,6 +161,43 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
 }
 
 .theme-toggle:active { transform: rotate(-15deg) scale(0.9); }
+
+.cache-toggle {
+    position: absolute;
+    top: 20px;
+    right: 72px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.05rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: var(--shadow-card);
+    z-index: 100;
+    transition: transform 0.3s var(--ease-bounce), opacity 0.2s ease;
+    padding: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .cache-toggle:hover { transform: rotate(-20deg) scale(1.08); }
+}
+
+.cache-toggle:active { transform: scale(0.9); }
+
+.cache-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ============================================================
+   блок 4
+   шапка пользователя
+   ============================================================ */
 
 .user-badge {
     position: absolute;
@@ -164,6 +226,11 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
 .logout-btn:hover { color: var(--text-heading); }
 .logout-btn:active { transform: scale(0.95); }
 
+/* ============================================================
+   блок 5
+   форма входа
+   ============================================================ */
+
 .auth-overlay {
     position: fixed;
     inset: 0;
@@ -175,6 +242,7 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     transition: opacity 0.25s ease;
 }
 
+/* плавное скрытие после входа */
 .auth-overlay.fade-out {
     opacity: 0;
     pointer-events: none;
@@ -224,6 +292,7 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
+/* анимация неверного пина */
 .pin-input.shake {
     animation: shake 0.4s ease;
     border-color: var(--danger);
@@ -235,6 +304,11 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     margin-bottom: 15px;
     font-weight: 500;
 }
+
+/* ============================================================
+   блок 6
+   большая галочка успеха в центре экрана
+   ============================================================ */
 
 .success-burst {
     position: fixed;
@@ -261,6 +335,7 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     animation: burstIn 0.5s var(--ease-bounce) backwards;
 }
 
+/* галочка рисуется через stroke-dashoffset */
 .success-burst path {
     stroke: #fff;
     stroke-width: 5;
@@ -270,6 +345,11 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     stroke-dashoffset: 40;
     animation: drawCheck 0.4s ease-out 0.2s forwards;
 }
+
+/* ============================================================
+   блок 7
+   версия приложения внизу экрана
+   ============================================================ */
 
 .app-version {
     position: fixed;
@@ -283,6 +363,11 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     z-index: 10;
     font-family: ui-monospace, monospace;
 }
+
+/* ============================================================
+   блок 8
+   скроллбар на устройствах с мышью
+   ============================================================ */
 
 @media (hover: hover) and (pointer: fine) {
     .results-container {
@@ -300,40 +385,18 @@ body.dark-theme .connection-status.has-queue .status-text { color: #fbbf24; }
     }
 }
 
-.cache-toggle {
-    position: absolute;
-    top: 20px;
-    right: 72px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    font-size: 1.05rem;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-shadow: var(--shadow-card);
-    z-index: 100;
-    transition: transform 0.3s var(--ease-bounce), opacity 0.2s ease;
-    padding: 0;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .cache-toggle:hover { transform: rotate(-20deg) scale(1.08); }
-}
-
-.cache-toggle:active { transform: scale(0.9); }
-
-.cache-toggle:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
+/* ============================================================
+   блок 9
+   служебный цвет для solid surface в двух темах
+   ============================================================ */
 
 :root { --surface-solid: #ffffff; }
 body.dark-theme { --surface-solid: #111419; }
+
+/* ============================================================
+   блок 10
+   ручка открытия боковой панели
+   ============================================================ */
 
 .drawer-handle {
     position: fixed;
@@ -356,6 +419,7 @@ body.dark-theme { --surface-solid: #111419; }
     transition: opacity 0.2s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* расширяем зону касания вокруг кнопки */
 .drawer-handle::after {
     content: '';
     position: absolute;
@@ -366,10 +430,16 @@ body.dark-theme { --surface-solid: #111419; }
     .drawer-handle:hover { background: var(--surface-2); color: var(--primary); }
 }
 
+/* когда панель открыта, ручка прячется */
 body.drawer-open .drawer-handle {
     opacity: 0;
     pointer-events: none;
 }
+
+/* ============================================================
+   блок 11
+   боковая панель
+   ============================================================ */
 
 .drawer-overlay {
     position: fixed;
@@ -413,6 +483,7 @@ body.drawer-open .drawer-handle {
     transition: transform 0.28s var(--ease-bounce), visibility 0s;
 }
 
+/* шапка панели с аватаром и именем */
 .drawer-head {
     display: flex;
     align-items: center;
@@ -483,6 +554,7 @@ body.drawer-open .drawer-handle {
     overscroll-behavior: contain;
 }
 
+/* элементы навигации в панели если появятся */
 .drawer-nav { padding: 8px 8px 0; }
 .drawer-nav:empty { display: none; }
 
@@ -550,6 +622,7 @@ body.drawer-open .drawer-handle {
     text-align: center;
 }
 
+/* подвал панели с выходом и версией */
 .drawer-foot {
     display: flex;
     align-items: center;
@@ -582,12 +655,14 @@ body.drawer-open .drawer-handle {
     font-family: ui-monospace, monospace;
 }
 
+/* отключения на слабых устройствах */
 .low-end .app-drawer,
 .low-end .drawer-overlay,
 .low-end .drawer-handle { transition: none; }
 
 /* ============================================================
-   НОМЕНКЛАТУРА В ПАНЕЛИ
+   блок 12
+   каталог номенклатуры в панели
    ============================================================ */
 
 .dg-title {
@@ -608,6 +683,7 @@ body.drawer-open .drawer-handle {
     color: var(--text-muted);
 }
 
+/* поиск в каталоге */
 .dg-search {
     position: relative;
     padding: 4px 12px 10px;
@@ -657,6 +733,7 @@ body.drawer-open .drawer-handle {
     .dg-clear:hover { background: var(--border); color: var(--text-heading); }
 }
 
+/* навигация по группам */
 .dg-nav {
     display: flex;
     align-items: center;
@@ -716,6 +793,7 @@ body.drawer-open .drawer-handle {
     transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
+/* строка группы */
 .dg-folder {
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -761,6 +839,7 @@ body.drawer-open .drawer-handle {
     line-height: 1;
 }
 
+/* строка товара */
 .dg-item {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -800,6 +879,7 @@ body.drawer-open .drawer-handle {
     font-weight: 400;
 }
 
+/* кнопка копирования кода товара */
 .dg-code-chip {
     flex: 0 0 auto;
     display: inline-flex;
@@ -851,6 +931,7 @@ body.dark-theme .dg-code-chip {
 
 .dg-price { font-size: 0.8rem; font-weight: 600; color: #16a34a; }
 
+/* состояние ошибки загрузки и кнопка повтора */
 .dg-error {
     display: flex;
     flex-direction: column;

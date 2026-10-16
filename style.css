@@ -1,30 +1,53 @@
-/* точка входа, подключает все модули стилей */
-/* мобильные переопределения подключаются после этого файла */
+/* ============================================================
+   style.css
+   назначение базовые стили и точка подключения общих таблиц
+   ответственность сброс, токены, основные правила и импорты компонентов
+   мобильные стили и тему подключает index.html
+   ============================================================ */
+
 @import url('./css/modals.css');
 @import url('./css/ui.css');
 
+
 /* ============================================================
-базовые переменные и разметка
-============================================================ */
+   блок 1
+   сброс отступов и общие правила для всех элементов
+   ============================================================ */
+
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    /* убираем серую подсветку тапов на мобильных */
     -webkit-tap-highlight-color: transparent;
 }
 
+
+/* ============================================================
+   блок 2
+   исходные цветовые и размерные переменные темы
+   общие значения задаются здесь и используются компонентами
+   ============================================================ */
+
 :root {
+    /* фоны */
     --bg: #f3f5f9;
     --bg-soft: #eef4ff;
     --surface: rgba(255, 255, 255, 0.92);
     --surface-2: #f6f8fc;
     --surface-3: #edf1f6;
+
+    /* границы и разделители */
     --border: rgba(15, 23, 42, 0.08);
     --separator: rgba(15, 23, 42, 0.08);
+
+    /* текст */
     --text: #1d2433;
     --text-heading: #111827;
     --text-muted: #66758b;
+
+    /* основные цвета бренда */
     --primary: #4f8ef7;
     --primary-soft: rgba(79, 142, 247, 0.10);
     --success: #2bb673;
@@ -34,20 +57,37 @@
     --warning-soft: rgba(251, 191, 36, 0.10);
     --warning-text: #b45309;
     --accent: #9a6af6;
+
+    /* радиусы закруглений */
     --r-sm: 10px;
     --r: 14px;
     --r-lg: 18px;
+
+    /* тени для разных слоев */
     --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04);
     --shadow-float: 0 4px 12px rgba(15, 23, 42, 0.08);
     --shadow-modal: 0 18px 38px rgba(15, 23, 42, 0.12);
+
+    /* тайминги анимаций */
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* подсветка при фокусе на инпуте */
     --glow-primary: 0 0 0 4px rgba(79, 142, 247, 0.15);
 }
+
+
+/* ============================================================
+   блок 3
+   глобальная разметка страницы
+   body занимает весь экран и не скроллится, скролл только
+   внутри results container
+   ============================================================ */
 
 body {
     background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
     color: var(--text);
+    /* dvh а не vh, чтобы не прыгало на мобильных адресных строках */
     height: 100dvh;
     display: flex;
     justify-content: center;
@@ -55,6 +95,14 @@ body {
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
 }
+
+
+/* ============================================================
+   блок 4
+   тёмная тема
+   переопределяет все переменные светлой темы
+   применяется через класс body.dark-theme, который ставит js
+   ============================================================ */
 
 body.dark-theme {
     --bg: #090d12;
@@ -83,6 +131,13 @@ body.dark-theme {
     background: linear-gradient(180deg, #090d12 0%, #0d1117 100%);
 }
 
+
+/* ============================================================
+   блок 5
+   обертка всего приложения
+   держит контент по центру и ограничивает ширину на десктопе
+   ============================================================ */
+
 .app-wrapper {
     width: 100%;
     max-width: 1200px;
@@ -95,19 +150,27 @@ body.dark-theme {
     padding: 22px 18px 18px;
 }
 
+
 /* ============================================================
-полоса загрузки
-============================================================ */
+   блок 6
+   полоса загрузки вверху экрана
+   появляется при fetch данных и уходит через 1.4 секунды
+   ============================================================ */
+
 .top-progress {
     position: fixed;
-    top: 0; left: 0; right: 0;
+    top: 0;
+    left: 0;
+    right: 0;
     height: 3px;
     z-index: 5000;
+    /* полоса декоративная, клики сквозь нее проходят */
     pointer-events: none;
     overflow: hidden;
     background: rgba(0, 0, 0, 0.05);
 }
 
+/* сама заливка полосы, растет слева направо */
 .top-progress::before {
     content: '';
     position: absolute;
@@ -119,6 +182,7 @@ body.dark-theme {
     box-shadow: 0 0 10px var(--primary);
 }
 
+/* активное состояние включает анимацию */
 .top-progress.active::before {
     animation: topProgress 1.4s ease-out forwards;
 }
@@ -129,9 +193,14 @@ body.dark-theme {
     100% { transform: scaleX(1);    opacity: 0; }
 }
 
+
 /* ============================================================
-поиск и фильтры
-============================================================ */
+   блок 7
+   контейнер поиска и фильтров
+   может быть в центре экрана или прижат к верху
+   переключается классом center и top
+   ============================================================ */
+
 .search-container {
     width: 100%;
     display: flex;
@@ -141,8 +210,23 @@ body.dark-theme {
     transition: top 0.35s var(--ease), transform 0.35s var(--ease);
 }
 
-.search-container.center { top: 42%; transform: translateY(-50%); }
-.search-container.top    { top: 40px; transform: translateY(0); }
+/* стартовое положение, по центру экрана */
+.search-container.center {
+    top: 42%;
+    transform: translateY(-50%);
+}
+
+/* рабочее положение, когда идет поиск, прижат к верху */
+.search-container.top {
+    top: 40px;
+    transform: translateY(0);
+}
+
+
+/* ============================================================
+   блок 8
+   поле поиска
+   ============================================================ */
 
 .search-box {
     width: 100%;
@@ -151,33 +235,43 @@ body.dark-theme {
     display: flex;
     align-items: center;
     padding: 14px 18px;
+    /* прозрачная рамка нужна чтобы при фокусе не прыгала высота */
     border: 2px solid transparent;
-    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.35);
-    transition: border-color 0.25s ease, background-color 0.25s ease, 
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transition: border-color 0.25s ease, background-color 0.25s ease,
                 box-shadow 0.25s ease, transform 0.25s ease;
 }
 
+/* фокус на инпуте внутри, подсвечиваем рамку и чуть увеличиваем */
 .search-box:focus-within {
     border-color: var(--primary);
     background: var(--surface);
-    box-shadow: var(--glow-primary), var(--shadow-float), inset 0 1px 0 rgba(255,255,255,0.35);
+    box-shadow: var(--glow-primary), var(--shadow-float), inset 0 1px 0 rgba(255, 255, 255, 0.35);
     transform: scale(1.01);
 }
 
+/* тёмная тема для поля поиска */
 body.dark-theme .search-box {
     background: var(--surface);
-    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.04);
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 body.dark-theme .search-box:focus-within {
     border-color: var(--primary);
-    box-shadow: var(--glow-primary), var(--shadow-float), inset 0 1px 0 rgba(255,255,255,0.04);
+    box-shadow: var(--glow-primary), var(--shadow-float), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .search-box input {
     color: var(--text-heading);
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 1.05rem;
+    background: transparent;
+    font-weight: 500;
 }
 
+/* иконка лупы слева */
 .search-icon {
     font-size: 1.1rem;
     margin-right: 10px;
@@ -185,19 +279,18 @@ body.dark-theme .search-box:focus-within {
     transition: color 0.25s ease, transform 0.25s ease;
 }
 
+/* при фокусе иконка перекрашивается в акцент */
 .search-box:focus-within .search-icon {
     color: var(--primary);
 }
 
-.search-box input {
-    width: 100%;
-    border: none;
-    outline: none;
-    font-size: 1.05rem;
-    color: var(--text-heading);
-    background: transparent;
-    font-weight: 500;
-}
+
+/* ============================================================
+   блок 9
+   подсказка под полем поиска
+   видна только когда поиск в режиме center
+   в режиме top схлопывается чтобы не занимать место
+   ============================================================ */
 
 .search-hint {
     margin-top: 10px;
@@ -216,6 +309,14 @@ body.dark-theme .search-box:focus-within {
     pointer-events: none;
 }
 
+
+/* ============================================================
+   блок 10
+   панель фильтров
+   три кнопки все, точка, машина
+   активная подсвечивается цветом primary
+   ============================================================ */
+
 .search-filters {
     display: flex;
     gap: 0;
@@ -229,6 +330,7 @@ body.dark-theme .search-box:focus-within {
     box-shadow: var(--shadow-card);
 }
 
+/* одна кнопка фильтра */
 .filter-chip {
     flex: 1;
     border: 0;
@@ -242,15 +344,20 @@ body.dark-theme .search-box:focus-within {
     transition: color 0.2s ease, transform 0.15s ease, background-color 0.2s ease;
 }
 
-.filter-chip:active { transform: scale(0.94); }
+/* легкий отклик на тап */
+.filter-chip:active {
+    transform: scale(0.94);
+}
 
+/* активный фильтр с анимацией pop */
 .filter-chip.active {
     background: var(--surface);
     color: var(--primary);
-    box-shadow: 0 2px 8px rgba(79, 142, 247, 0.15), inset 0 1px 0 rgba(255,255,255,0.56);
+    box-shadow: 0 2px 8px rgba(79, 142, 247, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.56);
     animation: chipPop 0.3s var(--ease-bounce);
 }
 
+/* тёмная тема для панели фильтров */
 body.dark-theme .search-filters {
     background: var(--surface-2);
     border-color: var(--border);
@@ -258,7 +365,7 @@ body.dark-theme .search-filters {
 
 body.dark-theme .filter-chip.active {
     background: var(--surface-3);
-    box-shadow: 0 2px 8px rgba(112, 168, 255, 0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+    box-shadow: 0 2px 8px rgba(112, 168, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 @keyframes chipPop {
@@ -267,35 +374,50 @@ body.dark-theme .filter-chip.active {
     100% { transform: scale(1); }
 }
 
+
 /* ============================================================
-результаты
-============================================================ */
+   блок 11
+   контейнер результатов поиска
+   тут скролл, скрытый скроллбар, отключен overflow anchor
+   чтобы при подгрузке карточек скролл не прыгал
+   ============================================================ */
+
 .results-container {
     width: 100%;
     position: absolute;
     top: 165px;
     bottom: 40px;
     overflow-y: auto;
+    /* стартовое состояние скрыто, показывает класс active */
     opacity: 0;
     pointer-events: none;
     padding-top: 4px;
     padding-bottom: 20px;
     scrollbar-width: none;
+    /* не даем скроллу утекать на родителя на мобилке */
     overscroll-behavior: contain;
+    /* отключаем автосдвиг скролла при вставке элементов */
     overflow-anchor: none;
     transition: opacity 0.2s ease;
 }
 
-.results-container::-webkit-scrollbar { display: none; }
+/* скроллбар скрываем в webkit */
+.results-container::-webkit-scrollbar {
+    display: none;
+}
 
 .results-container.active {
     opacity: 1;
     pointer-events: auto;
 }
 
+
 /* ============================================================
-карточка точки — УЛУЧШЕННАЯ ВЕРСИЯ
-============================================================ */
+   блок 12
+   карточка точки
+   главный элемент списка, показывается в режимах все и точка
+   ============================================================ */
+
 .point-card {
     position: relative;
     background: var(--surface);
@@ -304,17 +426,19 @@ body.dark-theme .filter-chip.active {
     margin-bottom: 12px;
     border: 1px solid var(--border);
     box-shadow: var(--shadow-card);
-    transition: transform 0.25s var(--ease), box-shadow 0.25s ease, 
+    transition: transform 0.25s var(--ease), box-shadow 0.25s ease,
                 border-color 0.25s ease, background-color 0.25s ease;
+    /* нужен для полосы слева при блокировке */
     overflow: hidden;
 }
 
+/* появление карточки с задержкой по индексу, дает эффект волны */
 .point-card:not(.skeleton-card) {
     animation: pointCardEnter 0.32s var(--ease) both;
     animation-delay: calc(var(--i, 0) * 18ms);
 }
 
-/* Звичайна картка без кольорової смуги; попереджувальні кольори лишаються */
+/* полоса слева у карточки, изначально прозрачная */
 .point-card::before {
     content: '';
     position: absolute;
@@ -327,45 +451,41 @@ body.dark-theme .filter-chip.active {
     border-radius: 0 4px 4px 0;
 }
 
-/* Заблокирована — жёлтая полоса */
+/* у заблокированной точки полоса желтая */
 .point-card.locked::before {
     background: #f59e0b;
 }
 
+/* ховер только на устройствах с мышью, на тач не нужен */
 @media (hover: hover) and (pointer: fine) {
     .point-card:not(.skeleton-card):hover {
         transform: translateY(-3px);
         box-shadow: var(--shadow-float);
         border-color: var(--primary);
     }
-    
 }
 
+/* легкое сжатие при тапе */
 .point-card:active {
     transform: scale(0.995);
 }
 
+/* тёмная тема карточки */
 body.dark-theme .point-card {
     background: var(--surface);
     border-color: var(--border);
     box-shadow: var(--shadow-card);
 }
 
-body.dark-theme .point-card:hover { border-color: var(--primary); }
-
-.point-title {
-    color: var(--text-heading);
+body.dark-theme .point-card:hover {
+    border-color: var(--primary);
 }
 
-.info-item label,
-.info-item span,
-.machine-code code,
-.point-code,
-.debt-label,
-.debt-value,
-.lock-badge {
-    color: var(--text-heading);
-}
+
+/* ============================================================
+   блок 13
+   шапка карточки, название точки и код
+   ============================================================ */
 
 .point-header {
     display: flex;
@@ -378,19 +498,21 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     border-bottom: 1px solid var(--separator);
 }
 
-.point-header > div:last-child {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: flex-end;
-}
-
+/* левая часть, название и код */
 .point-header > div:first-child {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     min-width: 0;
+}
+
+/* правая часть, бейджи блокировок */
+.point-header > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
 }
 
 .point-title {
@@ -402,6 +524,7 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     letter-spacing: -0.02em;
 }
 
+/* бейдж с кодом точки */
 .point-code {
     display: inline-flex;
     align-items: center;
@@ -418,6 +541,14 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     line-height: 1.2;
 }
 
+
+/* ============================================================
+   блок 14
+   сетка с данными точки
+   контрагент, адреса, оборудование и долг
+   на мобилке перестраивается через mobile.css
+   ============================================================ */
+
 .point-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -425,6 +556,7 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     padding-left: 8px;
 }
 
+/* подпись поля */
 .info-item label {
     display: block;
     font-size: 0.72rem;
@@ -435,13 +567,24 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     font-weight: 600;
 }
 
+/* значение поля */
 .info-item span {
     font-size: 0.92rem;
     color: var(--text);
     font-weight: 500;
 }
 
-.machine-tag { color: var(--success); font-weight: 600; }
+
+/* ============================================================
+   блок 15
+   оборудование в карточке
+   ============================================================ */
+
+/* название оборудования зеленым, если оно есть */
+.machine-tag {
+    color: var(--success);
+    font-weight: 600;
+}
 
 .machine-info > span {
     display: flex;
@@ -451,6 +594,7 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     line-height: 1.4;
 }
 
+/* маленький бейдж с кодом машины */
 .machine-code {
     display: inline-flex;
     align-items: center;
@@ -468,6 +612,13 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     overflow-wrap: anywhere;
 }
 
+
+/* ============================================================
+   блок 16
+   долг по точке
+   нулевой долг показан серым, положительный красным
+   ============================================================ */
+
 .debt-label {
     display: inline;
     font-size: 0.72rem;
@@ -479,9 +630,21 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     line-height: 1.2;
 }
 
-.debt-value.red   { color: var(--danger);  font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
-.debt-value.green { color: var(--text-muted); font-size: 1rem; font-weight: 600; line-height: 1.2; }
+.debt-value.red {
+    color: var(--danger);
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
 
+.debt-value.green {
+    color: var(--text-muted);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+/* плашка долга с полосой слева */
 .debt-positive {
     display: flex;
     align-items: center;
@@ -507,6 +670,12 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     text-align: left;
 }
 
+
+/* ============================================================
+   блок 17
+   пустое состояние и кнопка показать еще
+   ============================================================ */
+
 .empty-state {
     text-align: center;
     padding: 40px 20px;
@@ -528,9 +697,13 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     font-size: 0.9rem;
 }
 
+
 /* ============================================================
-кнопки — УЛУЧШЕННАЯ ВЕРСИЯ
-============================================================ */
+   блок 18
+   базовые кнопки
+   используется в модалках и на карточках
+   ============================================================ */
+
 .action-btn {
     position: relative;
     overflow: hidden;
@@ -548,7 +721,7 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
-/* Ripple-эффект при клике */
+/* слой для ripple эффекта при клике */
 .action-btn::after {
     content: '';
     position: absolute;
@@ -570,21 +743,22 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     transition: width 0s, height 0s, opacity 0s;
 }
 
+/* ховеры только на мышке */
 @media (hover: hover) and (pointer: fine) {
     .action-btn:not(:disabled):hover {
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(79, 142, 247, 0.3);
         filter: brightness(1.05);
     }
-    
-    .btn-success:not(:disabled):hover { 
+
+    .btn-success:not(:disabled):hover {
         box-shadow: 0 4px 12px rgba(43, 182, 115, 0.3);
-        filter: brightness(1.05); 
+        filter: brightness(1.05);
     }
-    
-    .btn-accent:not(:disabled):hover { 
+
+    .btn-accent:not(:disabled):hover {
         box-shadow: 0 4px 12px rgba(154, 106, 246, 0.3);
-        filter: brightness(1.05); 
+        filter: brightness(1.05);
     }
 }
 
@@ -593,6 +767,7 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     box-shadow: 0 1px 4px rgba(79, 142, 247, 0.2);
 }
 
+/* неактивная кнопка, серая и без тени */
 .action-btn:disabled {
     background: var(--surface-3);
     color: var(--text-muted);
@@ -600,41 +775,29 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     box-shadow: none;
 }
 
-.btn-secondary { 
-    background: var(--surface-3); 
-    color: var(--text-heading); 
+/* модификаторы цвета */
+.btn-secondary {
+    background: var(--surface-3);
+    color: var(--text-heading);
     box-shadow: none;
 }
 
-.btn-success   { 
-    background: var(--success); 
+.btn-success {
+    background: var(--success);
     box-shadow: 0 2px 8px rgba(43, 182, 115, 0.2);
 }
 
-.btn-accent    { 
-    background: var(--accent); 
+.btn-accent {
+    background: var(--accent);
     box-shadow: 0 2px 8px var(--accent-soft);
 }
 
-.action-btn[data-action="assort"] { 
-    background: var(--accent); 
-    box-shadow: 0 2px 8px var(--accent-soft);
-}
 
-.card-actions .action-btn[data-action="stock"],
-.card-actions .action-btn[data-action="shipment"],
-.card-actions .action-btn[data-action="recount"],
-.card-actions .action-btn[data-action="note"] {
-    background: var(--surface-2);
-    color: var(--text-heading);
-    border: 1px solid var(--border);
-    box-shadow: none;
-}
-
-.card-actions .action-btn:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-}
+/* ============================================================
+   блок 19
+   состояние загрузки кнопки
+   текст скрывается, вместо него крутится спиннер
+   ============================================================ */
 
 .btn-loading {
     position: relative;
@@ -645,8 +808,10 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
 .btn-loading::after {
     content: '';
     position: absolute;
-    top: 50%; left: 50%;
-    width: 16px; height: 16px;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
     margin: -8px 0 0 -8px;
     border: 2px solid rgba(255, 255, 255, 0.35);
     border-top-color: #fff;
@@ -662,6 +827,14 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+
+/* ============================================================
+   блок 20
+   сетка кнопок внутри карточки
+   на мобилке 2 колонки, первая кнопка на всю ширину
+   на десктопе 12 колонок
+   ============================================================ */
 
 .card-actions {
     display: grid;
@@ -681,6 +854,10 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     line-height: 1.2;
     text-align: center;
     border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 .card-actions .action-icon {
@@ -690,71 +867,115 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
     height: 18px;
 }
 
-.card-actions .action-btn[data-action="open"],
-.card-actions .action-btn[data-action="assort"],
-.card-actions .action-btn[data-action="pay"] {
-    min-height: 44px;
-}
-
+/* первая кнопка в сетке растягивается на обе колонки */
 .card-actions .action-btn:first-child {
     grid-column: 1 / -1;
 }
+
+/* второстепенные кнопки без цветного фона, только рамка */
+.card-actions .action-btn[data-action="stock"],
+.card-actions .action-btn[data-action="shipment"],
+.card-actions .action-btn[data-action="recount"],
+.card-actions .action-btn[data-action="note"] {
+    background: var(--surface-2);
+    color: var(--text-heading);
+    border: 1px solid var(--border);
+    box-shadow: none;
+}
+
+.card-actions .action-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* кнопка пополнения всегда в цвете accent */
+.action-btn[data-action="assort"] {
+    background: var(--accent);
+    box-shadow: 0 2px 8px var(--accent-soft);
+}
+
+
+/* ============================================================
+   блок 21
+   адаптация карточки и кнопок для десктопа
+   от 900 пикселей и выше
+   ============================================================ */
 
 @media (min-width: 900px) {
     .point-card {
         padding: 22px 24px;
         border-radius: 16px;
-        box-shadow: var(--shadow-card);
     }
-    
+
     .point-header {
         margin-bottom: 16px;
         padding-bottom: 14px;
     }
-    
-    .point-title { font-size: 1.2rem; }
-    
+
+    .point-title {
+        font-size: 1.2rem;
+    }
+
     .point-code {
         padding: 4px 10px;
-        border-radius: 999px;
-        background: var(--primary-soft);
-        color: var(--primary);
     }
-    
+
+    /* на десктопе три колонки, контрагент, долг, оборудование */
     .point-grid {
         grid-template-columns: minmax(0, 1.2fr) minmax(72px, 0.55fr) minmax(0, 1.45fr);
         gap: 16px 20px;
     }
-    
+
     .info-item label {
         margin-bottom: 5px;
         font-size: 0.74rem;
         letter-spacing: 0;
     }
-    
+
     .info-item span {
         font-size: 0.96rem;
         line-height: 1.35;
     }
-    
+
+    /* последний блок долга растянут на всю ширину */
+    .point-grid > .info-item:last-child {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding-top: 10px;
+        border-top: 1px solid var(--separator);
+    }
+
+    .point-grid > .info-item:last-child .debt-label {
+        margin: 0;
+    }
+
     .card-actions {
+        grid-template-columns: repeat(12, minmax(0, 1fr));
         gap: 10px;
         margin-top: 18px;
         padding-top: 16px;
     }
 
-    .card-actions .action-btn {
-        min-height: 44px;
-        padding: 8px 10px;
-        font-size: 0.8rem;
-    }
-
+    /* три главные кнопки по 4 колонки каждая */
     .card-actions .action-btn[data-action="open"],
     .card-actions .action-btn[data-action="assort"],
     .card-actions .action-btn[data-action="pay"] {
+        grid-column: span 4;
         min-height: 44px;
     }
-    
+
+    /* четыре второстепенные по 3 колонки */
+    .card-actions .action-btn[data-action="stock"],
+    .card-actions .action-btn[data-action="shipment"],
+    .card-actions .action-btn[data-action="recount"],
+    .card-actions .action-btn[data-action="note"] {
+        grid-column: span 3;
+    }
+
+    /* шапка пользователя на десктопе */
     .user-badge {
         top: 16px;
         left: 16px;
@@ -767,14 +988,14 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
         background: var(--surface);
         box-shadow: var(--shadow-card);
     }
-    
+
     .user-name {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    
+
     .logout-btn {
         flex: 0 0 auto;
         min-height: 32px;
@@ -783,66 +1004,55 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
         border-radius: 999px;
         background: var(--surface-2);
     }
-    
+
     .logout-btn:hover {
         background: var(--surface-3);
     }
-    
+
+    /* кнопки темы и кеша */
     .theme-toggle {
         top: 16px;
         right: 16px;
     }
-    
+
     .cache-toggle {
         top: 16px;
         right: 68px;
     }
-    
-    .search-container.top { top: 84px; }
-    
+
+    /* сдвигаем поиск и результаты вниз, на десктопе места больше */
+    .search-container.top {
+        top: 84px;
+    }
+
     .results-container {
         top: 224px;
         bottom: 84px;
     }
-    
-    .point-grid > .info-item:last-child {
-        grid-column: 1 / -1;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding-top: 10px;
-        border-top: 1px solid var(--separator);
-    }
-    
-    .point-grid > .info-item:last-child .debt-label {
-        margin: 0;
-    }
-    
-    .card-actions {
-        grid-template-columns: repeat(12, minmax(0, 1fr));
-    }
-    
-    .card-actions .action-btn[data-action="open"],
-    .card-actions .action-btn[data-action="assort"],
-    .card-actions .action-btn[data-action="pay"] { grid-column: span 4; }
-    
-    .card-actions .action-btn[data-action="stock"],
-    .card-actions .action-btn[data-action="shipment"],
-    .card-actions .action-btn[data-action="recount"],
-    .card-actions .action-btn[data-action="note"] { grid-column: span 3; }
 }
+
+
+/* ============================================================
+   блок 22
+   одиночный результат
+   когда нашлась одна карточка она растягивается на всю ширину
+   ============================================================ */
 
 @media (min-width: 900px) {
     .results-container.active.single-result {
-        /* было max-widt     720px  карточка выглядела узкой в одиночку.
-           теперь даём ей всю ширину app-wrapper (до 1200px) */
         display: block;
         max-width: 100%;
         margin-left: auto;
         margin-right: auto;
     }
 }
+
+
+/* ============================================================
+   блок 23
+   сетка из двух колонок на очень широких экранах
+   от 1200 пикселей, если результатов больше одного
+   ============================================================ */
 
 @media (min-width: 1200px) {
     .results-container.active:not(.single-result) {
@@ -851,21 +1061,26 @@ body.dark-theme .point-card:hover { border-color: var(--primary); }
         align-content: start;
         gap: 16px;
     }
-    
+
     .results-container.active:not(.single-result) > .point-card {
         min-width: 0;
         margin: 0;
     }
-    
+
+    /* пустое состояние и показать еще занимают обе колонки */
     .results-container.active:not(.single-result) > .empty-state,
     .results-container.active:not(.single-result) > .show-more-wrap {
         grid-column: 1 / -1;
     }
 }
 
+
 /* ============================================================
-блокировки
-============================================================ */
+   блок 24
+   визуал заблокированной карточки
+   желтая рамка и желтая полоса слева
+   ============================================================ */
+
 .point-card.locked {
     border-color: #fcd34d;
     background: #fffbeb;
@@ -876,6 +1091,7 @@ body.dark-theme .point-card.locked {
     border-color: #78350f;
 }
 
+/* бейдж показники зняті */
 .lock-badge {
     background: var(--warning-soft);
     color: var(--warning-text);
@@ -887,11 +1103,13 @@ body.dark-theme .point-card.locked {
     animation: popIn 0.35s var(--ease-bounce) 0.1s backwards;
 }
 
+/* вариант бейджа для пополнения */
 .lock-badge.order {
     background: var(--primary-soft);
     color: var(--primary);
 }
 
+/* текстовые заметки под карточкой */
 .lock-note {
     margin-top: 14px;
     padding: 12px 14px;
@@ -915,6 +1133,12 @@ body.dark-theme .point-card.locked {
     color: var(--success);
 }
 
+
+/* ============================================================
+   блок 25
+   вспомогательная мелкая кнопка
+   ============================================================ */
+
 .btn-small {
     padding: 5px 12px !important;
     min-height: 30px !important;
@@ -924,9 +1148,12 @@ body.dark-theme .point-card.locked {
     border-radius: var(--r-sm);
 }
 
+
 /* ============================================================
-скелетоны, ошибки, кнопка наверх
-============================================================ */
+   блок 26
+   ошибки в полях ввода
+   ============================================================ */
+
 .meter-input.error {
     border-color: var(--danger) !important;
     background: var(--danger-soft);
@@ -944,7 +1171,16 @@ body.dark-theme .meter-input.error {
     font-weight: 500;
 }
 
-.error-hint.show { display: block; }
+.error-hint.show {
+    display: block;
+}
+
+
+/* ============================================================
+   блок 27
+   скелетоны загрузки
+   полосатый градиент, ползет слева направо
+   ============================================================ */
 
 .skeleton {
     background: linear-gradient(
@@ -974,6 +1210,13 @@ body.dark-theme .meter-input.error {
     width: 80%;
     margin-bottom: 10px;
 }
+
+
+/* ============================================================
+   блок 28
+   кнопка наверх
+   появляется при скролле вниз, скрывается вверху
+   ============================================================ */
 
 .back-to-top {
     position: fixed;
@@ -1005,9 +1248,13 @@ body.dark-theme .meter-input.error {
     transform: scale(0.92);
 }
 
+
 /* ============================================================
-ключевые кадры
-============================================================ */
+   блок 29
+   все keyframes для анимаций
+   используются в разных местах выше
+   ============================================================ */
+
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
