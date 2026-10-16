@@ -938,18 +938,9 @@ body.dark-theme .note-chip.active { color: #07231c; }
     z-index: 1;
 }
 
-/* сплошной фон сверху + мягкое затухание внизу — карточки
-   красиво уходят под фильтр, а не режутся */
 .search-container.top {
-    padding-bottom: 14px;
-    background: linear-gradient(
-        180deg,
-        var(--bg) 0%,
-        var(--bg) 78%,
-        color-mix(in srgb, var(--bg) 60%, transparent) 92%,
-        transparent 100%
-    );
     pointer-events: auto;
+    background: transparent;
 }
 
 /* в режиме "Машина" search-box скрыт, фильтр стал короче —
@@ -969,3 +960,4 @@ body.dark-theme .note-chip.active { color: #07231c; }
         top: calc(var(--mobile-search-top) + 54px);
     }
 }
+
