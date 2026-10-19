@@ -11,15 +11,16 @@
 // - локально уменьшить долг не дожидаясь загрузки
 //
 // зависимости
-// - core/state.js даёт globalData, currentPaymentPointId, currentPaymentRequestId
-// - core/utils.js даёт fmt и isBlankServerError
-// - core/api.js даёт postJson, newRequestId
-// - core/storage.js даёт localDB
-// - core/locks.js даёт invalidateLockSnapshot
-// - ui/toast.js даёт showToast, showSuccessAnimation
-// - ui/focus.js даёт rememberFocus, restoreFocus, getTopModal
-// - features/meter.js даёт setBtnLoading, resetBtn, clearPaymentFlowState, refreshResults
-// - app/load.js даёт loadData
+// - core/state.js дает globalData, currentPaymentPointId, currentPaymentRequestId
+// - core/utils.js дает fmt и isBlankServerError
+// - core/api.js дает postJson, newRequestId
+// - core/storage.js дает localDB
+// - core/locks.js дает invalidateLockSnapshot
+// - ui/toast.js дает showToast, showSuccessAnimation
+// - ui/focus.js дает rememberFocus, restoreFocus, getTopModal
+// - features/meter.js дает setBtnLoading, resetBtn, clearPaymentFlowState, refreshResults
+// - но refreshResults объявлен в features/search.js
+// - app/load.js дает loadData
 // ============================================================
 
 

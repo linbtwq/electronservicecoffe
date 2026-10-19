@@ -10,13 +10,13 @@
 // - по клику на индикатор запускать ручное обновление
 //
 // зависимости
-// - core/state.js даёт AUTO_REFRESH_INTERVAL, autoRefreshTimer, isLoading, isSyncing, retryAttempt
-// - core/queue.js даёт readQueue, readFailed
-// - ui/focus.js даёт getTopModal
-// - ui/toast.js даёт showToast
-// - app/load.js даёт loadData
-// - app/sync.js даёт syncOfflineMeters
-// - app/clearCache.js даёт reviewFailedQueue
+// - core/state.js дает AUTO_REFRESH_INTERVAL, autoRefreshTimer, isLoading, isSyncing, retryAttempt
+// - core/queue.js дает readQueue, readFailed
+// - ui/focus.js дает getTopModal
+// - ui/toast.js дает showToast
+// - app/load.js дает loadData
+// - app/sync.js дает syncOfflineMeters
+// - core/queue.js дает reviewFailedQueue
 // ============================================================
 
 
@@ -24,7 +24,7 @@
 // блок 1. автообновление
 //
 // раз в минуту тихо тянем свежие данные.
-// если есть очередь, сначала пробуем её отправить.
+// если есть очередь, сначала пробуем ее отправить.
 // автообновление не работает в скрытой вкладке,
 // во время открытой модалки и во время другой загрузки
 // ============================================================
@@ -46,7 +46,7 @@ async function autoRefreshTick() {
     if (isLoading || isSyncing) return
     if (!currentUser) return
 
-    // если есть очередь, сначала пытаемся её отправить
+    // если есть очередь, сначала пытаемся ее отправить
     if (readQueue().length) {
         retryAttempt = 0
         await syncOfflineMeters({ quiet: true })
@@ -60,7 +60,7 @@ async function autoRefreshTick() {
 // ============================================================
 // блок 2. ручное обновление
 //
-// сначала разбираемся с отклонёнными записями.
+// сначала разбираемся с отклоненными записями.
 // потом отправляем очередь и тянем свежие данные
 // ============================================================
 

@@ -13,12 +13,13 @@
 // - ставить фокус в первое поле при открытии модалки
 //
 // зависимости
-// - core/state.js даёт searchMode и searchTimer
-// - features/search.js даёт handleSearch
-// - app/refresh.js даёт manualRefresh
-// - ui/dialog.js даёт _isFormField
-// - features/meter.js даёт closeModal, closeConfirmModal
-// - features/payment.js даёт closePaymentModal
+// - core/state.js дает searchMode и searchTimer
+// - features/search.js дает handleSearch
+// - app/refresh.js дает manualRefresh
+// - ui/dialog.js дает _isFormField
+// - features/meter.js дает closeModal, closeConfirmModal
+// - closeStockModal, closeShipmentModal, closeRecountModal, closeNoteModal, closeAssortModal, closeOrderConfirmModal
+// - features/payment.js дает closePaymentModal
 // ============================================================
 
 
@@ -32,7 +33,7 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 // ============================================================
 // блок 2. определение верхней модалки
 //
-// идём по всем активным оверлеям и берём тот у которого z-index больше
+// идем по всем активным оверлеям и берем тот у которого z-index больше
 // ============================================================
 
 function getTopModal() {

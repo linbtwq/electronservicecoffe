@@ -7,14 +7,14 @@
 // ответственность
 // - хранить последнее известное состояние сети
 // - показывать сколько секунд назад обновлялись данные
-// - перерисовывать индикатор с учётом очереди и синхронизации
+// - перерисовывать индикатор с учетом очереди и синхронизации
 //
 // оптимизация
 // если ключ состояния не менялся перерисовка не выполняется
 //
 // зависимости
-// - core/state.js даёт connectionOnline, lastLoadedAt, isLoading, lastSyncError, _lastStatusKey
-// - core/queue.js даёт readQueue и readFailed
+// - core/state.js дает connectionOnline, lastLoadedAt, isLoading, lastSyncError, _lastStatusKey
+// - core/queue.js дает readQueue и readFailed
 // ============================================================
 
 

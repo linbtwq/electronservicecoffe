@@ -11,19 +11,19 @@
 // - отправить документ заказа в 1с
 //
 // особенности
-// если сети нет, показываем сохранённый ассортимент из indexedDB.
+// если сети нет, показываем сохраненный ассортимент из indexedDB.
 // заказывать в офлайне нельзя, кнопка отправки появится только онлайн.
 //
 // зависимости
-// - globalData из script.js даёт точки
-// - fetchWithTimeout, newRequestId, showToast, escapeHtml из script.js
-// - setBtnLoading и resetBtn из script.js
-// - isStubResponse и emptyStateHtml из script.js
-// - qtyControlHtml из script.js
-// - localDB из script.js для кеша ассортимента
+// - globalData из core/state.js дает точки
+// - fetchWithTimeout, newRequestId, showToast, escapeHtml из core/api.js, core/api.js, ui/toast.js, core/utils.js
+// - setBtnLoading и resetBtn из features/meter.js
+// - isStubResponse и emptyStateHtml из ui/icons.js
+// - qtyControlHtml из ui/icons.js
+// - localDB для кеша ассортимента core/storage.js
 //
 // порядок подключения
-// index.html подключает assortments.js после script.js
+// index.html подключает assortments.js после app-модулей
 // ============================================================
 
 // флаги и объект состояния текущего заказа
@@ -35,7 +35,7 @@ let orderSending = false;
 // qty это словарь код на количество
 // items это словарь код на название и цену
 // requestId защищает от дублей на сервере
-// canOrder показывает разрешён ли заказ
+// canOrder показывает разрешен ли заказ
 const order = {
     pointId: null,
     qty: {},
@@ -56,9 +56,9 @@ function resetOrder() {
 // ============================================================
 // блок 1. создание окна ассортимента
 //
-// окно создаётся один раз.
+// окно создается один раз.
 // тело заполняется отдельно в renderAssortBody.
-// футер по умолчанию скрыт, показывается только если заказ разрешён.
+// футер по умолчанию скрыт, показывается только если заказ разрешен.
 // ============================================================
 
 function ensureAssortModal() {
@@ -108,7 +108,7 @@ function ensureAssortModal() {
 // блок 2. загрузка ассортимента
 //
 // сначала пробуем сеть.
-// если сети нет достаём сохранённый ассортимент из indexedDB.
+// если сети нет достаем сохраненный ассортимент из indexedDB.
 // если и там пусто бросаем ошибку.
 // ============================================================
 
@@ -128,7 +128,7 @@ async function loadPointAssortment(pointId) {
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
 
-        // кладём в кеш на будущее
+        // кладем в кеш на будущее
         try { await localDB.save(key, data); } catch (e) {}
 
         return { data, offline: false };
@@ -146,7 +146,7 @@ async function loadPointAssortment(pointId) {
 }
 
 // ============================================================
-// блок 3. расчёт итогов заказа
+// блок 3. расчет итогов заказа
 //
 // считает количество позиций и общую сумму.
 // используется в подвале окна и в окне подтверждения.
@@ -170,7 +170,7 @@ function orderTotals() {
 // ============================================================
 // блок 4. обновление подвала окна
 //
-// подвал показывается только если заказ разрешён.
+// подвал показывается только если заказ разрешен.
 // если позиции не выбраны, кнопка отправки заблокирована.
 // ============================================================
 
@@ -322,7 +322,7 @@ async function submitOrder() {
         try { body = await res.json(); } catch (e) {}
 
         // 1с может ответить 200 но с полем conduct_error
-        // это значит что документ создан но не проведён
+        // это значит что документ создан но не проведен
         if (body && body.conduct_error != null) {
             const raw = String(body.conduct_error);
             if (!isBlankServerError(raw)) conductError = raw;
@@ -341,7 +341,7 @@ async function submitOrder() {
         resetBtn(btn, 'Замовити');
 
         if (success) {
-            // отдельно сообщаем если документ не проведён
+            // отдельно сообщаем если документ не проведен
             if (conductError) {
                 console.error('[1С] замовлення не проведено:', conductError);
                 showToast('Замовлення створено, але НЕ ПРОВЕДЕНО: ' + conductError.slice(0, 150), true);
@@ -377,7 +377,7 @@ async function submitOrder() {
 function renderAssortBody(data, offline) {
     const body = document.getElementById('assortBody');
 
-    // по умолчанию заказ запрещён
+    // по умолчанию заказ запрещен
     order.canOrder = false;
 
     // заглушка от 1с
@@ -393,7 +393,7 @@ function renderAssortBody(data, offline) {
         return;
     }
 
-    // заказ разрешён только онлайн
+    // заказ разрешен только онлайн
     order.canOrder = !offline;
     order.items = {};
 
@@ -561,7 +561,7 @@ function renderAssortBody(data, offline) {
         const tile = e.target.closest('.assort-row');
         if (!tile) return;
 
-        // только цифры, не больше четырёх знаков
+        // только цифры, не больше четырех знаков
         e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
 
         setQty(tile.dataset.code, e.target.value, tile, false);

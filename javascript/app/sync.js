@@ -7,18 +7,18 @@
 // ответственность
 // - пройти по очереди и попробовать отправить каждую запись
 // - при 409 считать что сервер уже видел эту запись и не создавать дубль
-// - при серии ошибок перенести запись в список отклонённых
+// - при серии ошибок перенести запись в список отклоненных
 // - снимать локальные блокировки после успешной отправки
 // - рассчитывать паузу до следующей попытки по экспоненте
 //
 // зависимости
-// - core/api.js даёт postJson, newRequestId
-// - core/queue.js даёт readQueue, saveQueue, readFailed, saveFailed, unlockPoint
-// - core/locks.js даёт markSynced, lockPoint, invalidateLockSnapshot
-// - core/state.js даёт isSyncing, retryAttempt, retryTimer, lastSyncError
-// - ui/status.js даёт setConnectionStatus, renderStatus
-// - ui/toast.js даёт showToast
-// - app/load.js даёт loadData
+// - core/api.js дает postJson, newRequestId
+// - core/queue.js дает readQueue, saveQueue, readFailed, saveFailed, unlockPoint
+// - core/locks.js дает markSynced, lockPoint, invalidateLockSnapshot
+// - core/state.js дает isSyncing, retryAttempt, retryTimer, lastSyncError
+// - ui/status.js дает setConnectionStatus, renderStatus
+// - ui/toast.js дает showToast
+// - app/load.js дает loadData
 // ============================================================
 
 
@@ -29,8 +29,8 @@
 // это защита от дублей для старых записей.
 //
 // ответ 200 или 409 считается успехом.
-// при сетевой ошибке оставляем запись в очереди и идём дальше.
-// после нескольких попыток запись уходит в список отклонённых.
+// при сетевой ошибке оставляем запись в очереди и идем дальше.
+// после нескольких попыток запись уходит в список отклоненных.
 // ============================================================
 
 async function runSync({ manual, quiet }) {
@@ -87,7 +87,7 @@ async function runSync({ manual, quiet }) {
         }
     }
 
-    // отклонённые записи перекладываем в failed, не теряем
+    // отклоненные записи перекладываем в failed, не теряем
     if (dropped.length) {
         const failed = readFailed()
         for (const p of dropped) {
@@ -129,7 +129,7 @@ async function runSync({ manual, quiet }) {
 
 
 // ============================================================
-// блок 2. публичная обёртка синхронизации
+// блок 2. публичная обертка синхронизации
 //
 // защищает от параллельных запусков.
 // после завершения всегда перерисовывает статус
@@ -181,7 +181,7 @@ function scheduleSyncRetry() {
 // ============================================================
 // блок 4. офлайн-сохранение показаний
 //
-// кладёт запись в очередь и блокирует точку на показания.
+// кладет запись в очередь и блокирует точку на показания.
 // блокировка нужна чтобы пользователь случайно не сдал точку дважды
 // ============================================================
 
@@ -190,7 +190,7 @@ function saveOffline(payload) {
     queue.push(payload)
     saveQueue(queue)
 
-    // блокируем точку чтобы случайно не сдать ещё раз
+    // блокируем точку чтобы случайно не сдать еще раз
     lockPoint(payload.point_id, true)
     invalidateLockSnapshot()
 

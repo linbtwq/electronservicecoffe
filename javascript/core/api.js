@@ -11,8 +11,8 @@
 // - управлять полосой загрузки вверху экрана
 //
 // зависимости
-// - config.js даёт APP_CONFIG
-// - core/state.js даёт apiBase
+// - config.js дает APP_CONFIG
+// - core/state.js дает apiBase
 // ============================================================
 
 
@@ -21,7 +21,7 @@
 // ============================================================
 
 // завершает зависший запрос по таймауту
-// по умолчанию время ожидания берётся из настроек
+// по умолчанию время ожидания берется из настроек
 async function fetchWithTimeout(url, options = {}, ms = APP_CONFIG.loadTimeoutMs) {
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), ms)
@@ -38,7 +38,7 @@ async function fetchWithTimeout(url, options = {}, ms = APP_CONFIG.loadTimeoutMs
     }
 }
 
-// создаёт уникальный ключ запроса
+// создает уникальный ключ запроса
 // сервер использует его чтобы не создавать документ дважды
 const newRequestId = () => (window.crypto && crypto.randomUUID)
     ? crypto.randomUUID()

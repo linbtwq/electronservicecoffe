@@ -21,14 +21,14 @@
 // на каждое изменение проверяется остаток позиции
 //
 // зависимости
-// - globalData из script.js даёт список точек
-// - fetchWithTimeout, newRequestId, showToast, escapeHtml из script.js
-// - setBtnLoading и resetBtn из script.js
-// - isStubResponse и emptyStateHtml из script.js
-// - qtyControlHtml из script.js
+// - globalData из core/state.js дает список точек
+// - fetchWithTimeout, newRequestId, showToast, escapeHtml из core/api.js
+// - setBtnLoading и resetBtn из features/meter.js
+// - isStubResponse и emptyStateHtml из ui/icons.js
+// - qtyControlHtml из ui/icons.js
 //
 // порядок подключения
-// index.html подключает shipment.js после script.js
+// index.html подключает shipment.js после после app-модулей
 // ============================================================
 
 // ============================================================
@@ -60,7 +60,7 @@ let shipmentSearchQuery = ''
 // ============================================================
 // блок 2. создание окна
 //
-// окно создаётся один раз и дальше переиспользуется.
+// окно создается один раз и дальше переиспользуется.
 // список позиций заполняется отдельно в renderShipmentBody.
 // ============================================================
 
@@ -69,7 +69,7 @@ function ensureShipmentModal() {
     let el = document.getElementById('shipmentOverlay')
     if (el) return el
 
-    // создаём контейнер окна
+    // создаем контейнер окна
     el = document.createElement('div')
     el.className = 'modal-overlay'
     el.id = 'shipmentOverlay'
@@ -165,7 +165,7 @@ async function openShipmentModal(pointId) {
     const summary = document.getElementById('shipmentSummary')
     const sendBtn = document.getElementById('shipmentSendBtn')
 
-    // сбрасываем данные предыдущей формы и создаём ключ запроса
+    // сбрасываем данные предыдущей формы и создаем ключ запроса
     shipmentPointId = point.id
     shipmentRequestId = newRequestId()
     shipmentItems = []
@@ -212,7 +212,7 @@ async function openShipmentModal(pointId) {
         }
 
         // нормализуем поля из 1с в единый формат
-        // qty всегда начинается с нуля, это то что введёт курьер
+        // qty всегда начинается с нуля, это то что введет курьер
         shipmentItems = data.map(it => ({
             code: String(it.Code || ''),
             name: String(it.Name || ''),
@@ -241,10 +241,10 @@ async function openShipmentModal(pointId) {
 // ============================================================
 // блок 5. отрисовка тела модалки
 //
-// тело состоит из трёх частей.
+// тело состоит из трех частей.
 // сверху поиск по названию и коду.
-// посередине счётчик позиций и список строк.
-// внизу заглушка если поиск ничего не нашёл.
+// посередине счетчик позиций и список строк.
+// внизу заглушка если поиск ничего не нашел.
 //
 // после отрисовки навешиваем обработчики через делегирование.
 // клик по кнопкам плюс и минус, ручной ввод и уход из поля.
@@ -341,7 +341,7 @@ function renderShipmentBody() {
     })
 
     // при уходе из поля возвращаем нормальное значение
-    // если пользователь ввёл мусор он заменится на актуальное число
+    // если пользователь ввел мусор он заменится на актуальное число
     grid.addEventListener('focusout', e => {
         if (!e.target.classList.contains('qty-input')) return
 
@@ -526,7 +526,7 @@ async function submitShipment() {
         return
     }
 
-    // payload который ждёт 1с
+    // payload который ждет 1с
     // request_id для защиты от дублей на стороне сервера
     const payload = {
         point_id: pointId,
@@ -568,7 +568,7 @@ async function submitShipment() {
         }
 
         // 1с может ответить 200 но с полем conduct_error
-        // это значит что документ записался но не провёлся
+        // это значит что документ записался но не провелся
         let body = null
         try { body = await res.json() } catch (e) {}
 
@@ -597,7 +597,7 @@ async function submitShipment() {
 
         if (success) {
             // если 1с вернула ошибку проведения показываем отдельно
-            // документ уже создан, но в учёт не пошёл
+            // документ уже создан, но в учет не пошел
             if (conductError) {
                 console.error('[1С] відвантаження не проведено:', conductError)
                 showToast('Документ створено, але НЕ ПРОВЕДЕНО: ' + conductError.slice(0, 150), true)

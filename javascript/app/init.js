@@ -11,16 +11,16 @@
 // - собрать функции запуска в startApp
 //
 // зависимости
-// - core/storage.js даёт initQueueStorage
-// - features/meter.js даёт clearMeterFlowState
-// - features/payment.js даёт clearPaymentFlowState
-// - app/load.js даёт loadData
-// - app/sync.js даёт syncOfflineMeters
-// - app/events.js даёт initEventListeners
-// - app/refresh.js даёт startAutoRefresh
-// - ui/theme.js даёт initTheme
-// - features/search.js даёт initSearchFilters
-// - app/reset.js даёт resetAppState
+// - core/queue.js дает initQueueStorage
+// - features/meter.js дает clearMeterFlowState
+// - features/payment.js дает clearPaymentFlowState
+// - app/load.js дает loadData
+// - app/sync.js дает syncOfflineMeters
+// - app/events.js дает initEventListeners
+// - app/refresh.js дает startAutoRefresh
+// - ui/theme.js дает initTheme
+// - features/search.js дает initSearchFilters
+// - app/reset.js дает resetAppState
 // ============================================================
 
 
@@ -29,7 +29,7 @@
 //
 // в этом порядке
 // регистрируем sw, тему, обработчики, фильтры, версию.
-// загрузка данных тут не идёт, она начнётся после входа в auth.js
+// загрузка данных тут не идет, она начнется после входа в auth.js
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {

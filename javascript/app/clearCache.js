@@ -13,9 +13,9 @@
 // - перезагрузить страницу
 //
 // зависимости
-// - core/queue.js даёт readQueue и QUEUE_LS_KEY, FAILED_LS_KEY
-// - core/storage.js даёт clearLocalDb
-// - ui/dialog.js даёт showConfirmDialog
+// - core/queue.js дает readQueue и QUEUE_LS_KEY, FAILED_LS_KEY
+// - core/storage.js дает clearLocalDb
+// - ui/dialog.js дает showConfirmDialog
 // ============================================================
 
 
@@ -26,7 +26,7 @@
 // иначе показываем подтверждение и чистим.
 //
 // сохраняем пользователя, тему, режим поиска, очередь,
-// список отклонённых и блокировки точек
+// список отклоненных и блокировки точек
 // ============================================================
 
 function initClearCacheButton() {
@@ -66,7 +66,7 @@ function initClearCacheButton() {
 
             await clearLocalDb()
 
-            // сохраняем пользовательские настройки и незавершённые записи
+            // сохраняем пользовательские настройки и незавершенные записи
             const keepUser = localStorage.getItem('currentUser')
             const keepDark = localStorage.getItem('darkMode')
             const keepMode = localStorage.getItem('searchMode')

@@ -14,22 +14,29 @@
 // - обрабатывать кнопки количества в форме показаний
 //
 // зависимости
-// - core/state.js даёт MODAL_IDS, statusTimer, retryAttempt
-// - core/queue.js даёт readQueue
-// - ui/status.js даёт setConnectionStatus, renderStatus
-// - ui/backToTop.js даёт initBackToTop
-// - ui/modalDrag.js даёт initModalDrag
-// - features/search.js даёт handleSearch
-// - features/cards.js даёт appendCards
-// - features/meter.js даёт openMeterModal, calculateRowTotal
-// - features/payment.js даёт openPaymentModal
-// - features/stock.js даёт openStockModal
-// - app/load.js даёт loadData
-// - app/sync.js даёт syncOfflineMeters, scheduleSyncRetry
-// - app/clearCache.js даёт initClearCacheButton
-// - app/refresh.js даёт manualRefresh
-// - ui/theme.js даёт initTheme
-// - app/init.js даёт showVersion
+// - core/state.js дает MODAL_IDS, statusTimer, retryAttempt
+// - core/queue.js дает readQueue
+// - ui/status.js дает setConnectionStatus, renderStatus
+// - ui/backToTop.js дает initBackToTop
+// - ui/modalDrag.js дает initModalDrag
+// - features/search.js дает handleSearch
+// - features/cards.js дает appendCards
+// - features/meter.js дает openMeterModal, calculateRowTotal
+// - features/payment.js дает openPaymentModal
+// - features/stock.js дает openStockModal
+// - app/load.js дает loadData
+// - app/sync.js дает syncOfflineMeters, scheduleSyncRetry
+// - app/clearCache.js дает initClearCacheButton
+// - app/refresh.js дает manualRefresh
+// - ui/theme.js дает initTheme
+// - app/init.js дает showVersion
+// - openAssortModal дает assortments.js
+// - openShipmentModal дает shipment.js
+// - openRecountModal дает recount.js
+// - openNoteModal дает notes.js
+// - toggleMachineExpand дает machines.js
+// - initSearchFilters дает search.js
+// - onKeyDown дает focus.js
 // ============================================================
 
 
@@ -98,7 +105,7 @@ function initSearchClear() {
 
 
 // ============================================================
-// блок 3. периодический пересчёт статуса связи
+// блок 3. периодический пересчет статуса связи
 //
 // раз в пятнадцать секунд, только если вкладка видима
 // и пользователь авторизован

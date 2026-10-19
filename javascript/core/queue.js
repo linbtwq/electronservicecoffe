@@ -16,12 +16,12 @@
 // в памяти держится синхронная копия чтобы обработчики могли читать без ожидания.
 //
 // зависимости
-// - core/storage.js даёт localDB
-// - core/utils.js даёт readJsonSafe
-// - core/api.js даёт newRequestId
-// - core/locks.js даёт lockPoint и invalidateLockSnapshot
-// - ui/dialog.js даёт showConfirmDialog
-// - app/sync.js даёт scheduleSyncRetry
+// - core/storage.js дает localDB
+// - core/utils.js дает readJsonSafe
+// - core/api.js дает newRequestId
+// - core/locks.js дает lockPoint и invalidateLockSnapshot
+// - ui/dialog.js дает showConfirmDialog
+// - app/sync.js дает scheduleSyncRetry
 // ============================================================
 
 
@@ -38,10 +38,10 @@ const QUEUE_LS_KEY = 'offlineMetersQueue'
 const FAILED_LS_KEY = 'failedMetersQueue'
 
 // лимит попыток на одну запись
-// после этого запись уходит в список отклонённых
+// после этого запись уходит в список отклоненных
 const MAX_QUEUE_ATTEMPTS = 5
 
-// отклонённые записи хранятся четырнадцать дней
+// отклоненные записи хранятся четырнадцать дней
 const FAILED_TTL_MS = 14 * 24 * 3600 * 1000
 
 // синхронная копия очередей в памяти
@@ -123,7 +123,7 @@ function saveQueue(q) {
     } catch (e) {}
 }
 
-// читает отклонённые записи и попутно выкидывает просроченные
+// читает отклоненные записи и попутно выкидывает просроченные
 function readFailed() {
     const raw = _queueReady
         ? _queueState.failed
@@ -133,7 +133,7 @@ function readFailed() {
     return raw.filter(f => f && f.payload && f.at && now - f.at < FAILED_TTL_MS)
 }
 
-// сохраняет отклонённые записи
+// сохраняет отклоненные записи
 function saveFailed(list) {
     const arr = Array.isArray(list) ? list : []
     _queueState.failed = arr
@@ -151,7 +151,7 @@ function saveFailed(list) {
 // блок 4. снятие локальной блокировки
 //
 // если точка была заблокирована только потому что ждала отправки,
-// после успешной отправки или после отказа сервера её надо разблокировать.
+// после успешной отправки или после отказа сервера ее надо разблокировать.
 // ============================================================
 
 function unlockPoint(pointId) {
@@ -167,11 +167,11 @@ function unlockPoint(pointId) {
 
 
 // ============================================================
-// блок 5. диалог по отклонённым записям
+// блок 5. диалог по отклоненным записям
 //
-// показывает пользователю список отклонённых записей.
+// показывает пользователю список отклоненных записей.
 // если пользователь соглашается повторить,
-// возвращаем их в очередь и сбрасываем счётчик попыток.
+// возвращаем их в очередь и сбрасываем счетчик попыток.
 // ============================================================
 
 async function reviewFailedQueue() {
@@ -189,7 +189,7 @@ async function reviewFailedQueue() {
 
     const queue = readQueue().slice()
     for (const f of failed) {
-        // сбрасываем счётчик попыток
+        // сбрасываем счетчик попыток
         f.payload.attempts = 0
         delete f.payload.lastError
         queue.push(f.payload)

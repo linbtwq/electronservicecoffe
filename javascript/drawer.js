@@ -17,7 +17,7 @@
 // - refreshDrawerGoods из goods.js
 //
 // порядок подключения
-// index.html подключает drawer.js после script.js
+// index.html подключает drawer.js после app-модулей
 // ============================================================
 
 // флаги и ссылки на элементы панели
@@ -175,7 +175,7 @@ function closeDrawer() {
     _drawerOverlay.classList.remove('active');
     document.body.classList.remove('drawer-open');
 
-    // возвращаем фокус если элемент ещё в документе
+    // возвращаем фокус если элемент еще в документе
     if (_drawerPrevFocus && document.contains(_drawerPrevFocus)) {
         try { _drawerPrevFocus.focus(); } catch (e) {}
     }
@@ -235,8 +235,8 @@ document.addEventListener('touchend', (e) => {
 // ============================================================
 // блок 8. автозапуск инициализации
 //
-// если документ ещё грузится ждём DOMContentLoaded.
-// иначе создаём панель сразу.
+// если документ еще грузится ждем DOMContentLoaded.
+// иначе создаем панель сразу.
 // ============================================================
 
 if (document.readyState === 'loading') {

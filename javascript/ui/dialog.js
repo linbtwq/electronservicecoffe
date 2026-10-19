@@ -2,7 +2,7 @@
 // javascript/ui/dialog.js
 //
 // назначение
-// этот файл даёт универсальный диалог подтверждения.
+// этот файл дает универсальный диалог подтверждения.
 //
 // ответственность
 // - показать диалог с заголовком, текстом и списком деталей
@@ -10,7 +10,7 @@
 // - обработать escape и enter
 //
 // зависимости
-// - core/utils.js даёт escapeHtml
+// - core/utils.js дает escapeHtml
 // ============================================================
 
 
@@ -45,7 +45,7 @@ function showConfirmDialog({ title, message, details, okText, cancelText, danger
         const okBtn = document.getElementById('confirmDialogOk')
         const cancelBtn = document.getElementById('confirmDialogCancel')
 
-        // если разметки нет просто отдаём отказ
+        // если разметки нет просто отдаем отказ
         if (!overlay || !okBtn || !cancelBtn) {
             resolve(false)
             return

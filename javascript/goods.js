@@ -11,18 +11,18 @@
 // - кешировать результаты поиска
 //
 // про поиск
-// минимальная длина запроса задаётся константой GOODS_MIN_QUERY.
+// минимальная длина запроса задается константой GOODS_MIN_QUERY.
 // пока пользователь печатает запрос уходит не сразу,
 // а через паузу в двести пятьдесят миллисекунд.
 // если пользователь успел ввести новое поле, старый запрос отменяется.
 //
 // зависимости
-// - fetchWithTimeout, escapeHtml, showToast из script.js
-// - currentUser и apiBase из script.js
+// - fetchWithTimeout, escapeHtml, core/api.js, core/utils.js, ui/toast.js
+// - currentUser и apiBase из auth.js, core/state.js
 // - drawer.js вызывает refreshDrawerGoods при открытии панели
 //
 // порядок подключения
-// index.html подключает goods.js после script.js
+// index.html подключает goods.js после app-модулей
 // ============================================================
 
 // минимальная длина запроса для поиска
@@ -33,7 +33,7 @@ const GOODS_MIN_QUERY = 1;
 let goodsRendered = false;
 // идентификатор текущей открытой группы
 let goodsCurrentParent = '';
-// счётчик запросов для отмены устаревших ответов
+// счетчик запросов для отмены устаревших ответов
 let goodsSearchSeq = 0;
 // таймер отложенного поиска
 let goodsTimer = null;
@@ -204,7 +204,7 @@ function initDrawerGoods() {
 
         const row = e.target.closest('.dg-row');
         if (!row) return;
-        // клик по группе открывает её
+        // клик по группе открывает ее
         if (row.dataset.type === 'folder') {
             loadGoodsLevel(row.dataset.id);
         }
@@ -333,11 +333,11 @@ function renderGoodsItems(items) {
 // блок 6. поиск
 //
 // если запрос слишком короткий возвращаемся к обычному дереву.
-// если результат есть в кеше отдаём его сразу.
+// если результат есть в кеше отдаем его сразу.
 // иначе грузим с сервера с возможностью отмены.
 //
-// счётчик goodsSearchSeq защищает от ситуации
-// когда ответ приходит после того как пользователь уже ввёл новый запрос.
+// счетчик goodsSearchSeq защищает от ситуации
+// когда ответ приходит после того как пользователь уже ввел новый запрос.
 // ============================================================
 
 async function goodsOnSearch() {
@@ -360,7 +360,7 @@ async function goodsOnSearch() {
     // на время поиска скрываем навигацию
     if (navBox) navBox.style.display = 'none';
 
-    // если результат уже был в кеше отдаём сразу
+    // если результат уже был в кеше отдаем сразу
     if (goodsSearchCache.has(q)) {
         const cached = goodsSearchCache.get(q);
         renderGoodsSearchResults(cached.items, cached.truncated);
@@ -369,7 +369,7 @@ async function goodsOnSearch() {
 
     box.innerHTML = goodsSkeleton;
 
-    // отменяем предыдущий незавершённый поиск
+    // отменяем предыдущий незавершенный поиск
     if (goodsAbortController) {
         goodsAbortController.abort();
     }

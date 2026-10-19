@@ -11,10 +11,10 @@
 // - закрыть модалку если потянули достаточно далеко или быстро
 //
 // зависимости
-// - features/meter.js даёт closeModal, closeConfirmModal
-// - features/payment.js даёт closePaymentModal
-// - features/stock.js даёт closeStockModal
-// - notes.js даёт closeNoteModal
+// - features/meter.js дает closeModal, closeConfirmModal
+// - features/payment.js дает closePaymentModal
+// - features/stock.js дает closeStockModal
+// - notes.js дает closeNoteModal
 // ============================================================
 
 

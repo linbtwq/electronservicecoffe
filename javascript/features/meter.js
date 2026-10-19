@@ -2,7 +2,7 @@
 // javascript/features/meter.js
 //
 // назначение
-// этот файл отвечает за форму показаний счётчиков.
+// этот файл отвечает за форму показаний счетчиков.
 //
 // ответственность
 // - открыть модалку с ассортиментом точки
@@ -13,15 +13,15 @@
 // - при ошибке сети положить в офлайн-очередь
 //
 // зависимости
-// - core/state.js даёт globalData, currentPointId, currentMeterRequestId, _meterErrors, AUTO_LOGOUT_AFTER_SUBMIT
-// - core/utils.js даёт fmt и escapeHtml
-// - core/api.js даёт newRequestId, postJson
-// - core/locks.js даёт isMeterBlocked, lockPoint, invalidateLockSnapshot
-// - ui/icons.js даёт emptyStateHtml
-// - ui/toast.js даёт showToast, showSuccessAnimation
-// - ui/focus.js даёт rememberFocus, restoreFocus, getTopModal, autofocusModal
-// - app/sync.js даёт saveOffline
-// - app/load.js даёт loadData
+// - core/state.js дает globalData, currentPointId, currentMeterRequestId, _meterErrors, AUTO_LOGOUT_AFTER_SUBMIT
+// - core/utils.js дает fmt и escapeHtml
+// - core/api.js дает newRequestId, postJson
+// - core/locks.js дает isMeterBlocked, lockPoint, invalidateLockSnapshot
+// - ui/icons.js дает emptyStateHtml
+// - ui/toast.js дает showToast, showSuccessAnimation
+// - ui/focus.js дает rememberFocus, restoreFocus, getTopModal, autofocusModal
+// - app/sync.js дает saveOffline
+// - app/load.js дает loadData
 // ============================================================
 
 
@@ -30,7 +30,7 @@
 //
 // порядок такой
 // 1. найти точку в общем списке
-// 2. проверить что она ещё не заблокирована
+// 2. проверить что она еще не заблокирована
 // 3. запомнить фокус и сбросить ошибки
 // 4. создать новый request_id
 // 5. собрать строку на каждый напиток
@@ -71,7 +71,7 @@ function openMeterModal(pointId) {
         const max = Math.max(...prices)
         const priceText = min === max ? `${fmt(min)} ₴` : `${fmt(min)}–${fmt(max)} ₴`
 
-        // общий счётчик показываем только если включён в настройках оборудования
+        // общий счетчик показываем только если включен в настройках оборудования
         const sumLast = item.assortment.reduce((s, d) => s + (Number(d.last_meter) || 0), 0)
         const serverTotal = item.total_counter == null ? NaN : Number(item.total_counter)
         const totalBase = Number.isFinite(serverTotal) ? serverTotal : sumLast
@@ -142,7 +142,7 @@ function openMeterModal(pointId) {
     const proceedBtn = document.querySelector('#modalOverlay .modal-footer .action-btn')
     if (proceedBtn) proceedBtn.disabled = !hasAssortment
 
-    // пересчёт по всем строкам при первом показе
+    // пересчет по всем строкам при первом показе
     document.querySelectorAll('#modalBody [data-drink-row] .meter-input')
         .forEach(inp => calculateRowTotal(inp))
 
@@ -151,7 +151,7 @@ function openMeterModal(pointId) {
 
 
 // ============================================================
-// блок 2. пересчёт строки показаний
+// блок 2. пересчет строки показаний
 //
 // новое значение не может быть меньше предыдущего.
 // если меньше, подсвечиваем поле и блокируем кнопку продолжить.
@@ -165,7 +165,7 @@ function calculateRowTotal(input) {
     const isBlank = raw === ''
     const newVal = isBlank ? 0 : Number(raw) || 0
 
-    // добавляем подсказку об ошибке если её нет
+    // добавляем подсказку об ошибке если ее нет
     let errorHint = row.querySelector('.error-hint')
     if (!errorHint) {
         errorHint = document.createElement('div')
@@ -205,9 +205,9 @@ function calculateRowTotal(input) {
 
 
 // ============================================================
-// блок 3. общий счётчик в шапке
+// блок 3. общий счетчик в шапке
 //
-// показывается только если оборудование поддерживает общий счётчик.
+// показывается только если оборудование поддерживает общий счетчик.
 // суммирует все приросты по строкам
 // ============================================================
 
@@ -293,7 +293,7 @@ function closeModal() {
 // блок 6. отправка показаний в 1с
 //
 // порядок такой
-// 1. найти точку и проверить что она ещё не заблокирована
+// 1. найти точку и проверить что она еще не заблокирована
 // 2. собрать метры из строк формы
 // 3. если сети нет положить в офлайн-очередь
 // 4. отправить post на /meters
@@ -307,7 +307,7 @@ async function submitMeters() {
     const pointId = currentPointId
     const currentItem = globalData.find(i => String(i.id) === String(pointId))
 
-    // ещё раз проверяем что точку не заблокировали пока открыта модалка
+    // еще раз проверяем что точку не заблокировали пока открыта модалка
     if (currentItem && isMeterBlocked(currentItem)) {
         showToast('По цій точці показники вже зняті. Зміни — через 1С.', true)
         finishSubmission({ logout: false })
@@ -354,7 +354,7 @@ async function submitMeters() {
 
     setBtnLoading(confirmBtn, 'Відправка...')
 
-    // офлайн, кладём в очередь
+    // офлайн, кладем в очередь
     if (!navigator.onLine) {
         saveOffline(payload)
         finishSubmission()
@@ -412,7 +412,7 @@ async function submitMeters() {
     } catch (error) {
         const msg = error && error.message ? error.message : String(error)
 
-        // сетевая ошибка, кладём в очередь
+        // сетевая ошибка, кладем в очередь
         if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
             saveOffline(payload)
             finishSubmission()

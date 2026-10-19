@@ -99,7 +99,7 @@ body {
 
 /* ============================================================
    блок 4
-   тёмная тема
+   темная тема
    переопределяет все переменные светлой темы
    применяется через класс body.dark-theme, который ставит js
    ============================================================ */
@@ -250,7 +250,7 @@ body.dark-theme {
     transform: scale(1.01);
 }
 
-/* тёмная тема для поля поиска */
+/* темная тема для поля поиска */
 body.dark-theme .search-box {
     background: var(--surface);
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -357,7 +357,7 @@ body.dark-theme .search-box:focus-within {
     animation: chipPop 0.3s var(--ease-bounce);
 }
 
-/* тёмная тема для панели фильтров */
+/* темная тема для панели фильтров */
 body.dark-theme .search-filters {
     background: var(--surface-2);
     border-color: var(--border);
@@ -470,7 +470,7 @@ body.dark-theme .filter-chip.active {
     transform: scale(0.995);
 }
 
-/* тёмная тема карточки */
+/* темная тема карточки */
 body.dark-theme .point-card {
     background: var(--surface);
     border-color: var(--border);

@@ -11,14 +11,14 @@
 //
 // особенности
 // рендер порционный, по PAGE_SIZE карточек за раз.
-// под списком показывается кнопка показать ещё
+// под списком показывается кнопка показать еще
 //
 // зависимости
-// - core/state.js даёт PAGE_SIZE, globalData, searchMode, lastResults, renderedCount, _dataRevision, _lockRevision, _lockSnapshot
-// - core/utils.js даёт fmt и escapeHtml
-// - core/locks.js даёт buildLockSnapshot, lockTimeText, isUnlimitedUser
-// - ui/icons.js даёт actionIconMarkup, machineIconMarkup
-// - ui/backToTop.js даёт updateBackToTop
+// - core/state.js дает PAGE_SIZE, globalData, searchMode, lastResults, renderedCount, _dataRevision, _lockRevision, _lockSnapshot
+// - core/utils.js дает fmt и escapeHtml
+// - core/locks.js дает buildLockSnapshot, lockTimeText, isUnlimitedUser
+// - ui/icons.js дает actionIconMarkup, machineIconMarkup
+// - ui/backToTop.js дает updateBackToTop
 // ============================================================
 
 
@@ -159,7 +159,7 @@ function cardHtml(item, idx) {
 // блок 2. порционный рендер
 //
 // доклеивает PAGE_SIZE карточек за один вызов.
-// если остались ещё, добавляет кнопку показать ещё.
+// если остались еще, добавляет кнопку показать еще.
 // ============================================================
 
 function appendCards(container, replace) {
@@ -172,7 +172,7 @@ function appendCards(container, replace) {
         html += cardHtml(lastResults[i], i - start)
     }
 
-    // кнопка показать ещё если остались карточки
+    // кнопка показать еще если остались карточки
     if (remaining > 0) {
         const shown = end
         const total = lastResults.length
@@ -189,7 +189,7 @@ function appendCards(container, replace) {
     if (replace) {
         container.innerHTML = html
     } else {
-        // при дозаклейке убираем старую кнопку показать ещё
+        // при дозаклейке убираем старую кнопку показать еще
         const old = container.querySelector('.show-more-wrap')
         if (old) old.remove()
         container.insertAdjacentHTML('beforeend', html)

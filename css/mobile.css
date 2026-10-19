@@ -592,7 +592,7 @@ body.is-hidden *::after {
 .low-end .empty-state,
 .low-end .show-more-wrap { animation: none; }
 
-/* если пользователь просил уменьшить движение, гасим всё */
+/* если пользователь просил уменьшить движение, гасим все */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;

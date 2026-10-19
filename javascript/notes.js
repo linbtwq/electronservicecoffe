@@ -12,17 +12,17 @@
 //
 // особенности
 // сервер использует request_id чтобы не создавать дубликаты.
-// если пользователь дважды нажмёт сохранить
+// если пользователь дважды нажмет сохранить
 // повторный запрос с тем же request_id не создаст вторую запись.
 //
 // зависимости
-// - globalData из script.js даёт список точек
-// - fetchWithTimeout и newRequestId из script.js
-// - showToast и escapeHtml из script.js
-// - rememberFocus и restoreFocus из script.js
+// - globalData в core/state.js дает список точек
+// - fetchWithTimeout и newRequestId из core/api.js
+// - showToast и escapeHtml из ui/toast.js, core/utils.js
+// - rememberFocus и restoreFocus из ui/focus.js
 //
 // порядок подключения
-// index.html подключает notes.js после script.js
+// index.html подключает notes.js после app-модулей
 // ============================================================
 
 // ============================================================
@@ -97,7 +97,7 @@ function noteDateText(s) {
 // ============================================================
 // блок 4. создание модального окна
 //
-// окно создаётся один раз при первом открытии.
+// окно создается один раз при первом открытии.
 // дальше ensureNoteModal просто возвращает существующий элемент.
 //
 // так экономится время на повторной сборке разметки
@@ -109,7 +109,7 @@ function ensureNoteModal() {
     let el = document.getElementById('noteOverlay');
     if (el) return el;
 
-    // создаём корневой контейнер окна
+    // создаем корневой контейнер окна
     el = document.createElement('div');
     el.className = 'modal-overlay';
     el.id = 'noteOverlay';
@@ -169,7 +169,7 @@ function ensureNoteModal() {
 
     // блок 4.2 работа с текстовым полем
     const ta = el.querySelector('#noteText');
-    // при вводе текста обновляем счётчик и кнопку
+    // при вводе текста обновляем счетчик и кнопку
     ta.addEventListener('input', updateNoteForm);
     // сочетание ctrl + enter или cmd + enter отправляет примечание
     ta.addEventListener('keydown', e => {
@@ -195,7 +195,7 @@ function ensureNoteModal() {
 // блок 5. синхронизация состояния формы
 //
 // обновляет три вещи
-// счётчик введённых символов
+// счетчик введенных символов
 // подсветку активного тега
 // доступность кнопки сохранения
 // ============================================================
@@ -207,7 +207,7 @@ function updateNoteForm() {
     // если хоть одного элемента нет выходим
     if (!ta || !counter || !btn) return;
 
-    // счётчик символов
+    // счетчик символов
     counter.textContent = `${ta.value.length} / ${NOTE_MAX}`;
 
     // подсветка выбранного тега
@@ -215,7 +215,7 @@ function updateNoteForm() {
         chip.classList.toggle('active', chip.dataset.tag === noteTag);
     });
 
-    // кнопка активна только если не идёт отправка и есть текст
+    // кнопка активна только если не идет отправка и есть текст
     btn.disabled = noteSending || !ta.value.trim();
 }
 
@@ -229,7 +229,7 @@ function updateNoteForm() {
 // ============================================================
 
 function closeNoteModal() {
-    // если идёт отправка, закрывать нельзя
+    // если идет отправка, закрывать нельзя
     if (noteSending) return;
 
     document.getElementById('noteOverlay')?.classList.remove('active');
@@ -252,7 +252,7 @@ function closeNoteModal() {
 // порядок такой
 // 1. ищем точку в общем списке
 // 2. запоминаем текущий фокус
-// 3. создаём окно если его ещё нет
+// 3. создаем окно если его еще нет
 // 4. заполняем шапку и сбрасываем поле
 // 5. показываем скелетон истории
 // 6. показываем окно
@@ -289,7 +289,7 @@ async function openNoteModal(pointId) {
     // сбрасываем заголовок истории
     document.getElementById('noteHistoryTitle').textContent = 'Історія';
 
-    // показываем скелетон пока идёт загрузка
+    // показываем скелетон пока идет загрузка
     document.getElementById('noteList').innerHTML = `
         <div class="assort-loading">
             <div class="skeleton skeleton-text" style="width:70%;"></div>
@@ -314,9 +314,9 @@ async function openNoteModal(pointId) {
 // блок 8. загрузка истории с сервера
 //
 // важный момент
-// пока идёт запрос пользователь мог закрыть окно
+// пока идет запрос пользователь мог закрыть окно
 // или открыть его для другой точки.
-// в конце проверяем что notePointId всё ещё совпадает
+// в конце проверяем что notePointId все еще совпадает
 // иначе результат устарел и его нужно выбросить.
 // ============================================================
 
@@ -363,7 +363,7 @@ async function loadNotes() {
 // блок 9. отрисовка истории
 //
 // если примечаний нет показываем заглушку.
-// иначе идём по массиву и собираем разметку.
+// иначе идем по массиву и собираем разметку.
 //
 // все данные от сервера прогоняются через escapeHtml
 // потому что имя автора и текст примечания приходят с сервера
@@ -453,7 +453,7 @@ async function submitNote() {
     if (closeBtn) closeBtn.disabled = true;
     setBtnLoading(btn, 'Збереження...');
 
-    // сюда запишется подтверждённая сервером примечание
+    // сюда запишется подтвержденная сервером примечание
     let saved = null;
 
     try {
@@ -482,7 +482,7 @@ async function submitNote() {
         let body = null;
         try { body = await res.json(); } catch (e) {}
 
-        // если сервер вернул запись берём её
+        // если сервер вернул запись берем ее
         // иначе строим локальную копию чтобы сразу показать в списке
         saved = (body && body.note) ? body.note : {
             author: currentUser ? currentUser.name : '',
@@ -505,7 +505,7 @@ async function submitNote() {
 
         // если сохранение прошло успешно обновляем интерфейс
         if (saved) {
-            // новая примечание встаёт первой в списке
+            // новая примечание встает первой в списке
             noteItems.unshift(saved);
             renderNoteList();
 
@@ -520,7 +520,7 @@ async function submitNote() {
             showToast('Примітку збережено');
         }
 
-        // синхронизируем счётчик и кнопку
+        // синхронизируем счетчик и кнопку
         updateNoteForm();
     }
 }

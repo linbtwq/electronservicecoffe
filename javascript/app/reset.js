@@ -11,12 +11,12 @@
 // - вернуть поиск в центр
 //
 // зависимости
-// - core/state.js даёт почти все переменные
-// - core/storage.js даёт _locksCache
-// - core/locks.js даёт invalidateLockSnapshot
-// - ui/status.js даёт renderStatus
-// - ui/backToTop.js даёт updateBackToTop
-// - app/refresh.js даёт stopAutoRefresh
+// - core/state.js дает почти все переменные
+// - core/storage.js дает _locksCache
+// - core/locks.js дает invalidateLockSnapshot
+// - ui/status.js дает renderStatus
+// - ui/backToTop.js дает updateBackToTop
+// - app/refresh.js дает stopAutoRefresh
 // ============================================================
 
 

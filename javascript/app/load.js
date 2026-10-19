@@ -12,19 +12,19 @@
 // - не запускать параллельные загрузки
 //
 // особенности
-// если во время загрузки пришёл ещё один вызов,
+// если во время загрузки пришел еще один вызов,
 // он ставится в очередь и выполняется сразу после текущего
 //
 // зависимости
-// - core/state.js даёт globalData, isLoading, reloadQueued, serverDataFresh, lastLoadedAt
-// - core/api.js даёт fetchWithTimeout, showTopProgress, hideTopProgress
-// - core/storage.js даёт localDB
-// - core/locks.js даёт invalidateLockSnapshot
-// - core/queue.js даёт readQueue
-// - ui/status.js даёт setConnectionStatus, renderStatus
-// - ui/toast.js даёт showToast
-// - features/search.js даёт refreshResults
-// - app/sync.js даёт syncOfflineMeters
+// - core/state.js дает globalData, isLoading, reloadQueued, serverDataFresh, lastLoadedAt
+// - core/api.js дает fetchWithTimeout, showTopProgress, hideTopProgress
+// - core/storage.js дает localDB
+// - core/locks.js дает invalidateLockSnapshot
+// - core/queue.js дает readQueue
+// - ui/status.js дает setConnectionStatus, renderStatus
+// - ui/toast.js дает showToast
+// - features/search.js дает refreshResults
+// - app/sync.js дает syncOfflineMeters
 // ============================================================
 
 
@@ -95,7 +95,7 @@ async function loadData({ silent = false } = {}) {
         setConnectionStatus(false)
         serverDataFresh = false
 
-        // если данных нет совсем, ещё раз смотрим в кеш
+        // если данных нет совсем, еще раз смотрим в кеш
         if (!globalData.length) {
             try {
                 const cached = await localDB.load('cachedNomenclature')
@@ -119,7 +119,7 @@ async function loadData({ silent = false } = {}) {
         hideTopProgress()
         renderStatus()
 
-        // если во время загрузки приходил ещё запрос, делаем его
+        // если во время загрузки приходил еще запрос, делаем его
         if (reloadQueued) {
             reloadQueued = false
             loadData({ silent: true })
