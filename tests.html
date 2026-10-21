@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Unit Tests</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #ddd; }
+        .pass { color: #4caf50; }
+        .fail { color: #f44336; }
+        .test-group { margin-bottom: 20px; border-left: 3px solid #555; padding-left: 10px; }
+        h2 { color: #fff; border-bottom: 1px solid #555; padding-bottom: 5px; }
+        pre { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Результати тестів</h1>
+    <div id="output"></div>
+
+    <!-- Подключаем только то, что тестируем -->
+    <script src="javascript/config.js"></script> <!-- ДОБАВЛЕНО: без него state.js падает -->
+    <script src="javascript/core/utils.js"></script>
+    <script src="javascript/core/state.js"></script>
+    <script src="javascript/features/search.js"></script>
+    <script src ="javascript/goods.js"></script>
+
+    <script>
+        const output = document.getElementById('output');
+        let passCount = 0;
+        let failCount = 0;
+
+        function assert(actual, expected, testName) {
+            const normalize = (val) => String(val).replace(/\s+/g, ' ').trim();
+            const isPass = normalize(actual) === normalize(expected);
+            
+            if (isPass) {
+                passCount++;
+                output.innerHTML += `<pre class="pass">✅ ${testName}</pre>`;
+            } else {
+                failCount++;
+                output.innerHTML += `<pre class="fail">❌ ${testName}\n   Очікували: ${JSON.stringify(expected)}\n   Отримали: ${JSON.stringify(actual)}</pre>`;
+            }
+        }
+
+        // --- ТЕСТИ ---
+        
+        output.innerHTML += `<div class="test-group"><h2>1. Форматування чисел (fmt)</h2>`;
+        assert(fmt(1000), '1 000', 'Форматування тисячі');
+        assert(fmt(1000000), '1 000 000', 'Форматування мільйона');
+        assert(fmt(123.45), '123,45', 'Форматування дробів');
+        assert(fmt(null), '0', 'Захист від null');
+        assert(fmt('abc'), '0', 'Захист від тексту');
+        output.innerHTML += `</div>`;
+
+        output.innerHTML += `<div class="test-group"><h2>2. Пошук (filterPoints)</h2>`;
+        
+        // Мокаємо дані (замість того, щоб тягнути з 1С)
+        globalData = [
+            { id: '1', point_name: 'Магазин А', address: 'вул. Хрещатик', coffee_machine_code: 'M-100' },
+            { id: '2', point_name: 'Магазин Б', address: 'вул. Грушевського', coffee_machine_code: 'M-200' },
+            { id: '3', point_name: 'Кафе В', address: 'вул. Сагайдачного', coffee_machine_code: 'X-999' }
+        ];
+
+        assert(filterPoints('1').length, 1, 'Пошук по ID (1)');
+        assert(filterPoints('Магазин').length, 2, 'Пошук по назві (Магазин)');
+        assert(filterPoints('M-100').length, 1, 'Пошук по коду машини (M-100)');
+        assert(filterPoints('Сагайдачного').length, 1, 'Пошук по адресі (Сагайдачного)');
+        assert(filterPoints('Немає такого').length, 0, 'Пошук неіснуючого');
+        
+        output.innerHTML += `</div>`;
+
+        // --- ПІДСУМОК ---
+        output.innerHTML = `<h2>Всього: <span class="pass">${passCount} успішно</span>, <span class="fail">${failCount} провалено</span></h2>` + output.innerHTML;
+    </script>
+</body>
+</html>
