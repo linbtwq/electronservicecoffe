@@ -434,123 +434,52 @@ function updateRecountSummary() {
 // ============================================================
 
 async function submitRecount() {
-    // защита от двойного клика
-    if (recountSending) return
+    if (recountSending) return;
+    const pointId = recountPointId;
+    if (!pointId) return;
 
-    const pointId = recountPointId
-    if (!pointId) return
-
-    // суммарное отклонение, если ноль то и отправлять нечего
-    let totalQty = 0
-    recountItems.forEach(it => { totalQty += (it.actual - it.book) })
-
+    let totalQty = 0;
+    recountItems.forEach(it => { totalQty += (it.actual - it.book) });
     if (!totalQty) {
-        showToast('Немає відхилень — нічого відправляти', true)
-        return
+        showToast('Немає відхилень — нічого відправляти', true);
+        return;
     }
 
-    // перерасчет только онлайн
     if (!navigator.onLine) {
-        showToast('Немає мережі! Перерахунок можна відправити лише онлайн.', true)
-        return
+        showToast('Немає мережі! Перерахунок можна відправити лише онлайн.', true);
+        return;
     }
 
-    // в 1с отправляем все позиции
     const items = recountItems.map(it => ({
-        code: it.Code,
-        name: it.Name,
-        price: it.price,
-        book: it.book,
-        actual: it.actual
-    }))
+        code: it.Code, name: it.Name, price: it.price, book: it.book, actual: it.actual
+    }));
 
     const payload = {
         point_id: pointId,
         technician_id: currentUser ? currentUser.id : '',
-        // id для защиты от дублей
         request_id: recountRequestId || newRequestId(),
         items
-    }
+    };
 
-    const btn = document.getElementById('recountSendBtn')
-    const closeBtn = document.querySelector('#recountOverlay .modal-close')
+    const btn = document.getElementById('recountSendBtn');
+    const closeBtn = document.querySelector('#recountOverlay .modal-close');
 
-    // блокируем форму на время отправки
-    recountSending = true
-    if (closeBtn) closeBtn.disabled = true
-    setBtnLoading(btn, 'Відправка...')
+    recountSending = true;
 
-    let success = false
-    let conductError = ''
-
-    try {
-        const res = await fetchWithTimeout(
-            `${apiBase}/recount?v=${APP_CONFIG.apiVersion}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // код курьера и в заголовке и в теле
-                    'X-User-Code': currentUser ? currentUser.id : ''
-                },
-                body: JSON.stringify(payload)
-            },
-            APP_CONFIG.sendTimeoutMs
-        )
-
-        if (!res.ok) {
-            const errText = await res.text()
-            throw new Error((errText && errText.slice(0, 200)) || 'Помилка сервера 1С')
+    await submitDocument({
+        endpoint: 'recount',
+        payload,
+        btn,
+        closeBtn,
+        successText: 'Перерахунок відправлено в 1С',
+        errorPrefix: 'Не вдалося відправити',
+        onSuccess: () => {
+            recountItems = [];
+            recountPointId = null;
+            closeRecountModal();
         }
+    });
 
-        let body = null
-        try { body = await res.json() } catch (e) {}
-
-        // 1с может ответить 200 но с полем conduct_error
-        // значит документ записался, но не провелся
-        const raw = (body && body.conduct_error != null) ? String(body.conduct_error) : ''
-
-        // пустое поле или слеш считаем успехом
-        conductError = isBlankServerError(raw) ? '' : raw
-
-        success = true
-
-    } catch (err) {
-        const message = err && err.message ? err.message : String(err)
-
-        // отделяем сетевые ошибки от ошибок сервера
-        const msg = (message.includes('Failed to fetch') || message.toLowerCase().includes('timeout'))
-            ? '1С не відповідає. Перерахунок не відправлено.'
-            : `Не вдалося відправити: ${message}`
-
-        showToast(msg, true)
-
-    } finally {
-        recountSending = false
-        if (closeBtn) closeBtn.disabled = false
-        resetBtn(btn, 'Відправити в 1С')
-
-        if (success) {
-            // если 1с вернула ошибку проведения показываем ее отдельно
-            if (conductError) {
-                console.error('[1С] перерахунок не проведено:', conductError)
-                showToast('Документ створено, але НЕ ПРОВЕДЕНО: ' + conductError.slice(0, 150), true)
-            } else {
-                showSuccessAnimation()
-                showToast('Перерахунок відправлено в 1С')
-            }
-
-            // чистим состояние и закрываем модалку
-            recountItems = []
-            recountPointId = null
-            closeRecountModal()
-
-            // тихо тянем свежие остатки
-            loadData({ silent: true })
-        } else {
-            // отправка не прошла, оставляем форму как есть
-            // пересчитываем итог чтобы кнопка не залипла в loading
-            updateRecountSummary()
-        }
-    }
+    recountSending = false;
+    if (recountPointId) updateRecountSummary();
 }

@@ -76,6 +76,7 @@ const ASSETS = [
     // сборка приложения
     './javascript/app/load.js',
     './javascript/app/sync.js',
+    './javascript/app/submit.js',
     './javascript/app/clearCache.js',
     './javascript/app/events.js',
     './javascript/app/refresh.js',

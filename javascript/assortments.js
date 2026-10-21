@@ -252,32 +252,21 @@ function setQty(code, value, tile, syncInput) {
 // ============================================================
 
 async function submitOrder() {
-    // защита от двойного клика или от отправки пустого заказа
     if (orderSending || !order.canOrder) return;
-
     const { count, sum } = orderTotals();
     if (!count) return;
 
-    // заказ только онлайн
     if (!navigator.onLine) {
         showToast('Немає мережі! Замовлення можна відправити лише онлайн.', true);
         return;
     }
 
-    // сохраняем точку до сброса формы
     const pointId = order.pointId;
-
-    // собираем позиции из словаря
     const items = Object.keys(order.qty).map(code => ({
-        code,
-        name: order.items[code].name,
-        qty: order.qty[code],
-        price: order.items[code].price
+        code, name: order.items[code].name, qty: order.qty[code], price: order.items[code].price
     }));
 
-    // request_id либо уже созданный либо новый
     order.requestId = order.requestId || newRequestId();
-
     const payload = {
         point_id: pointId,
         technician_id: currentUser ? currentUser.id : '',
@@ -289,79 +278,25 @@ async function submitOrder() {
     const btn = document.getElementById('orderSendBtn');
     const closeBtn = document.querySelector('#assortOverlay .modal-close');
 
-    // блокируем форму на время отправки
     orderSending = true;
-    if (closeBtn) closeBtn.disabled = true;
-    setBtnLoading(btn, 'Відправка...');
 
-    let success = false;
-    let finalSum = sum;
-    let conductError = '';
-
-    try {
-        const res = await fetchWithTimeout(
-            `${apiBase}/orders?v=${APP_CONFIG.apiVersion}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // код курьера уходит и в заголовке и в теле
-                    'X-User-Code': currentUser ? currentUser.id : ''
-                },
-                body: JSON.stringify(payload)
-            },
-            APP_CONFIG.sendTimeoutMs
-        );
-
-        if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(errText.slice(0, 150) || 'Помилка сервера 1С');
-        }
-
-        let body = null;
-        try { body = await res.json(); } catch (e) {}
-
-        // 1с может ответить 200 но с полем conduct_error
-        // это значит что документ создан но не проведен
-        if (body && body.conduct_error != null) {
-            const raw = String(body.conduct_error);
-            if (!isBlankServerError(raw)) conductError = raw;
-        }
-
-        success = true;
-    } catch (err) {
-        const message = err && err.message ? err.message : String(err);
-        const msg = (message.includes('Failed to fetch') || message.toLowerCase().includes('timeout'))
-            ? '1С не відповідає. Замовлення не відправлено, спробуйте ще раз.'
-            : `Не вдалося відправити замовлення: ${message}`;
-        showToast(msg, true);
-    } finally {
-        orderSending = false;
-        if (closeBtn) closeBtn.disabled = false;
-        resetBtn(btn, 'Замовити');
-
-        if (success) {
-            // отдельно сообщаем если документ не проведен
-            if (conductError) {
-                console.error('[1С] замовлення не проведено:', conductError);
-                showToast('Замовлення створено, але НЕ ПРОВЕДЕНО: ' + conductError.slice(0, 150), true);
-            } else {
-                showSuccessAnimation();
-                showToast(`Замовлення відправлено: ${count} поз. на ${fmt(finalSum)} ₴`);
-            }
-
-            // чистим состояние и закрываем окна
+    await submitDocument({
+        endpoint: 'orders',
+        payload,
+        btn,
+        closeBtn,
+        loadingText: 'Відправка...',
+        successText: `Замовлення відправлено: ${count} поз. на ${fmt(sum)} ₴`,
+        errorPrefix: 'Не вдалося відправити замовлення',
+        onSuccess: () => {
             resetOrder();
             document.getElementById('orderConfirmOverlay')?.classList.remove('active');
             closeAssortModal();
-
-            // тихо тянем свежие данные
-            loadData({ silent: true });
-        } else {
-            // отправка не прошла, оставляем форму как есть
-            updateOrderBar();
         }
-    }
+    });
+
+    orderSending = false;
+    if (order.canOrder) updateOrderBar(); // Если была ошибка, форма осталась открытой
 }
 
 // ============================================================

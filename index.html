@@ -7,12 +7,6 @@
     <title>1с база</title>
     <link rel="icon" href="data:,">
 
-    <!--
-        скрипт определяет классы устройства до загрузки приложения.
-        от этих классов зависит сколько карточек показывать за раз
-        и какие анимации включать.
-        скрипт стоит в head чтобы классы успели появиться раньше css.
-    -->
     <script>
 (function () {
     try {
@@ -43,11 +37,6 @@
 })();
 </script>
 
-    <!--
-        предотвращает вспышку светлой темы при загрузке
-        для тех у кого включена тёмная тема.
-        класс снимается в initTheme после DOMContentLoaded.
-    -->
     <script>
 (function () {
     try {
@@ -58,7 +47,6 @@
 })();
 </script>
 
-    <!-- порядок стилей важен, тема идет последней -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="css/mobile.css">
     <link rel="stylesheet" href="css/theme.css">
@@ -97,6 +85,9 @@
             </div>
             <div class="search-hint" id="searchHint">Введіть номер точки. 0 покаже всі точки</div>
         </div>
+
+        <!-- Спиннер теперь здесь, вне скроллируемого контейнера -->
+        <div id="ptrSpinner" class="ptr-spinner">⟳</div>
 
         <div class="results-container" id="resultsContainer"></div>
     </div>
@@ -203,38 +194,6 @@
 
     <div id="appVersion" class="app-version"></div>
 
-    <!--
-        порядок подключения скриптов важен.
-
-        сначала конфигурация и авторизация.
-        version.js задает версию, ее читает sw.js (через importScripts) и app/init.js / drawer.js (через глобал)
-        config.js дает настройки.
-        auth.js объявляет currentUser и login.
-
-        затем ядро.
-        utils без зависимостей.
-        storage над utils.
-        в index.html api.js подключается до state.js. 
-        работает только потому, что apiBase используется внутри postJson (в момент вызова, а не при загрузке)
-        если кто-то в api.js добавит обращение к apiBase на верхнем уровне
-        упадет с Cannot access 'apiBase' before initialization.
-        аналогичная история с locks.js (грузится до state.js, но использует его переменные только внутри функций)
-        queue над storage.
-        state последним, потому что читает все константы.
-
-        затем интерфейсные помощники.
-        icons, toast, status, focus, dialog, theme, backToTop, modalDrag.
-
-        затем рабочие сценарии.
-        search, cards, meter, payment, stock.
-
-        затем сборка приложения.
-        load, sync, clearCache, events, refresh, reset, init.
-
-        затем оптимизации и функциональные модули.
-        optimize оборачивает renderStatus из status.js.
-        остальные модули используют ядро и интерфейс.
-    -->
     <script src="version.js"></script>
     <script src="javascript/config.js"></script>
     <script src="javascript/auth.js"></script>
@@ -263,6 +222,7 @@
 
     <script src="javascript/app/load.js"></script>
     <script src="javascript/app/sync.js"></script>
+    <script src="javascript/app/submit.js"></script>
     <script src="javascript/app/clearCache.js"></script>
     <script src="javascript/app/events.js"></script>
     <script src="javascript/app/refresh.js"></script>

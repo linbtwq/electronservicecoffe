@@ -3,47 +3,6 @@
 //
 // назначение
 // этот файл навешивает все обработчики событий интерфейса.
-//
-// ответственность
-// - связать поле поиска и контейнер результатов с обработчиками
-// - слушать сетевые события online и offline
-// - следить за видимостью вкладки
-// - направлять клики по карточкам в нужные модули
-// - поддерживать клавиатурное управление раскрытым блоком
-// - обновлять индикатор связи по таймеру
-// - обрабатывать кнопки количества в форме показаний
-//
-// зависимости
-// - core/state.js дает MODAL_IDS, statusTimer, retryAttempt
-// - core/queue.js дает readQueue
-// - ui/status.js дает setConnectionStatus, renderStatus
-// - ui/backToTop.js дает initBackToTop
-// - ui/modalDrag.js дает initModalDrag
-// - features/search.js дает handleSearch
-// - features/cards.js дает appendCards
-// - features/meter.js дает openMeterModal, calculateRowTotal
-// - features/payment.js дает openPaymentModal
-// - features/stock.js дает openStockModal
-// - app/load.js дает loadData
-// - app/sync.js дает syncOfflineMeters, scheduleSyncRetry
-// - app/clearCache.js дает initClearCacheButton
-// - app/refresh.js дает manualRefresh
-// - ui/theme.js дает initTheme
-// - app/init.js дает showVersion
-// - openAssortModal дает assortments.js
-// - openShipmentModal дает shipment.js
-// - openRecountModal дает recount.js
-// - openNoteModal дает notes.js
-// - toggleMachineExpand дает machines.js
-// - initSearchFilters дает search.js
-// - onKeyDown дает focus.js
-// ============================================================
-
-
-// ============================================================
-// блок 1. основная инициализация
-//
-// вызывается один раз при запуске приложения.
 // ============================================================
 
 function initEventListeners() {
@@ -74,21 +33,14 @@ function initEventListeners() {
     renderStatus()
     scheduleSyncRetry()
     initClearCacheButton()
+    initPullToRefresh()
 }
-
-
-// ============================================================
-// блок 2. кнопка очистки поля поиска
-//
-// показываем только при непустом запросе
-// ============================================================
 
 function initSearchClear() {
     const searchInput = document.getElementById('searchInput')
     const clearBtn = document.getElementById('searchClear')
     if (!searchInput || !clearBtn) return
 
-    // синхронизирует видимость кнопки с содержимым поля
     const sync = () => { clearBtn.hidden = !searchInput.value }
 
     searchInput.addEventListener('input', sync)
@@ -103,14 +55,6 @@ function initSearchClear() {
     sync()
 }
 
-
-// ============================================================
-// блок 3. периодический пересчет статуса связи
-//
-// раз в пятнадцать секунд, только если вкладка видима
-// и пользователь авторизован
-// ============================================================
-
 function scheduleStatusLoop() {
     if (statusTimer) clearInterval(statusTimer)
 
@@ -119,16 +63,7 @@ function scheduleStatusLoop() {
     }, 15000)
 }
 
-
-// ============================================================
-// блок 4. клики по карточкам
-//
-// смотрим на data-action у ближайшей кнопки.
-// события раскрытого блока остатков не перехватываем
-// ============================================================
-
 function onResultsClick(event) {
-    // оставляем события раскрытого списка его собственному обработчику
     if (event.target.closest('.machine-expand')) return
 
     const btn = event.target.closest('[data-action]')
@@ -148,14 +83,6 @@ function onResultsClick(event) {
     else if (action === 'note') openNoteModal(id)
 }
 
-
-// ============================================================
-// блок 5. клавиатурное управление раскрытым блоком остатков
-//
-// enter или пробел на элементе с data-action=machines
-// переключают раскрытие блока
-// ============================================================
-
 function onResultsKeydown(event) {
     if (event.key !== 'Enter' && event.key !== ' ') return
     if (event.target.closest('.machine-expand')) return
@@ -166,15 +93,6 @@ function onResultsKeydown(event) {
     event.preventDefault()
     toggleMachineExpand(trigger.dataset.id)
 }
-
-
-// ============================================================
-// блок 6. возврат на вкладку
-//
-// синхронизируем очередь если есть.
-// перезагружаем данные если они устарели.
-// пересчитываем статус.
-// ============================================================
 
 function handleVisibilityChange() {
     if (document.visibilityState !== 'visible') return
@@ -188,23 +106,11 @@ function handleVisibilityChange() {
     renderStatus()
 }
 
-
-// ============================================================
-// блок 7. восстановление сети
-// ============================================================
-
 function handleOnlineStatus() {
     retryAttempt = 0
     syncOfflineMeters()
     if (currentUser) loadData({ silent: true })
 }
-
-
-// ============================================================
-// блок 8. закрытие основных модалок кликом по затемнению
-//
-// остальные модалки закрываются своими модулями
-// ============================================================
 
 function handleGlobalClick(event) {
     const el = event.target
@@ -214,15 +120,6 @@ function handleGlobalClick(event) {
     else if (el.id === MODAL_IDS.confirmOverlay) closeConfirmModal()
     else if (el.id === MODAL_IDS.paymentOverlay) closePaymentModal()
 }
-
-
-// ============================================================
-// блок 9. кнопки количества в форме показаний
-//
-// клик по плюсу и минусу меняет значение в поле.
-// ввод с клавиатуры фильтруется по цифрам.
-// после каждого изменения пересчитывается сумма по строке
-// ============================================================
 
 function setupMeterButtons() {
     const container = document.getElementById('modalBody')
@@ -249,4 +146,71 @@ function setupMeterButtons() {
         e.target.value = e.target.value.replace(/\D/g, '').slice(0, 7)
         calculateRowTotal(e.target)
     })
+}
+
+// ============================================================
+// PULL TO REFRESH
+// ============================================================
+function initPullToRefresh() {
+    const container = document.getElementById('resultsContainer');
+    const spinner = document.getElementById('ptrSpinner');
+    if (!container || !spinner) return;
+
+    let touchStartY = 0;
+    let touchCurrentY = 0;
+    const threshold = 70; // пикселей для срабатывания
+    let isPulling = false;
+    let isRefreshing = false;
+
+    container.addEventListener('touchstart', (e) => {
+        if (container.scrollTop <= 0 && !isRefreshing) {
+            touchStartY = e.touches[0].clientY;
+            isPulling = true;
+        }
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+        if (!isPulling) return;
+
+        touchCurrentY = e.touches[0].clientY;
+        const deltaY = touchCurrentY - touchStartY;
+
+        if (deltaY > 0) {
+            if (e.cancelable) e.preventDefault();
+            const distance = Math.min(deltaY * 0.5, 100); 
+            // Спиннер выезжает сверху вниз. Изначально он в -40px, поэтому прибавляем distance
+            spinner.style.transform = `translateX(-50%) translateY(${distance}px)`;
+            spinner.style.opacity = Math.min(distance / threshold, 1);
+        }
+    }, { passive: false });
+
+    container.addEventListener('touchend', async () => {
+        if (!isPulling) return;
+        isPulling = false;
+
+        const deltaY = touchCurrentY - touchStartY;
+        
+        if (deltaY > threshold) {
+            isRefreshing = true;
+            spinner.classList.add('spinning');
+            spinner.style.transform = `translateX(-50%) translateY(10px)`;
+            spinner.style.opacity = '1';
+            
+            if (navigator.vibrate) navigator.vibrate(20);
+
+            if (typeof manualRefresh === 'function') {
+                await manualRefresh();
+            }
+
+            // Прячем обратно наверх
+            spinner.classList.remove('spinning');
+            spinner.style.transform = `translateX(-50%) translateY(-40px)`;
+            spinner.style.opacity = '0';
+            isRefreshing = false;
+        } else {
+            // Не дотянули, прячем обратно
+            spinner.style.transform = `translateX(-50%) translateY(-40px)`;
+            spinner.style.opacity = '0';
+        }
+    }, { passive: true });
 }

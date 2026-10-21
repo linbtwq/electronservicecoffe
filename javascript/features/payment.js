@@ -82,91 +82,61 @@ function closePaymentModal() {
 // ============================================================
 
 async function submitPayment() {
-    const pointId = currentPaymentPointId
-    const item = globalData.find(i => String(i.id) === String(pointId))
-    if (!item) { closePaymentModal(); return }
+    const pointId = currentPaymentPointId;
+    const item = globalData.find(i => String(i.id) === String(pointId));
+    if (!item) { closePaymentModal(); return; }
 
-    const input = document.getElementById('paymentAmount')
-    const errorBox = document.getElementById('paymentError')
-    const amount = Number(input.value)
-    const currentDebt = Number(item.debt) || 0
+    const input = document.getElementById('paymentAmount');
+    const errorBox = document.getElementById('paymentError');
+    const amount = Number(input.value);
+    const currentDebt = Number(item.debt) || 0;
 
-    // валидация
+    // Валидацию оставляем как есть, она специфична для оплаты
     if (!amount || amount <= 0) {
-        errorBox.textContent = 'Сума має бути більше нуля'
-        errorBox.style.display = 'block'
-        return
+        errorBox.textContent = 'Сума має бути більше нуля';
+        errorBox.style.display = 'block';
+        return;
     }
     if (amount > currentDebt) {
-        errorBox.textContent = `Сума не може перевищувати поточний борг (${fmt(currentDebt)} ₴)`
-        errorBox.style.display = 'block'
-        return
+        errorBox.textContent = `Сума не може перевищувати поточний борг (${fmt(currentDebt)} ₴)`;
+        errorBox.style.display = 'block';
+        return;
     }
     if (!navigator.onLine) {
-        errorBox.textContent = 'Немає мережі! Оплату можна провести тільки онлайн.'
-        errorBox.style.display = 'block'
-        return
+        errorBox.textContent = 'Немає мережі! Оплату можна провести тільки онлайн.';
+        errorBox.style.display = 'block';
+        return;
     }
 
-    const btn = document.querySelector('#paymentOverlay .btn-success')
-    const cancelBtn = document.querySelector('#paymentOverlay .btn-secondary')
-    if (cancelBtn) cancelBtn.disabled = true
-
-    setBtnLoading(btn, 'Відправка...')
-    errorBox.style.display = 'none'
+    const btn = document.querySelector('#paymentOverlay .btn-success');
+    const cancelBtn = document.querySelector('#paymentOverlay .btn-secondary');
+    if (cancelBtn) cancelBtn.disabled = true;
+    errorBox.style.display = 'none';
 
     const payload = {
         point_id: pointId,
         technician_id: currentUser ? currentUser.id : '',
         amount,
         request_id: currentPaymentRequestId || newRequestId()
-    }
+    };
 
-    try {
-        const response = await postJson('payment', payload)
-
-        if (!response.ok) {
-            const errText = await response.text()
-            throw new Error((errText && errText.slice(0, 150)) || 'Помилка сервера 1С')
+    await submitDocument({
+        endpoint: 'payment',
+        payload,
+        btn,
+        closeBtn: cancelBtn,
+        successText: `Оплата ${fmt(amount)} ₴ успішно проведена!`,
+        errorPrefix: 'Не вдалося провести',
+        onSuccess: (body, conductError) => {
+            closePaymentModal();
+            if (!conductError) {
+                applyDebtDelta(pointId, -amount);
+                refreshResults();
+            }
         }
+    });
 
-        let body = null
-        try { body = await response.json(); } catch (e) {}
-
-        invalidateLockSnapshot()
-
-        // 1с может провести пко но не провести погашение
-        const rawConduct = (body && body.conduct_error != null) ? String(body.conduct_error) : ''
-        const conductError = isBlankServerError(rawConduct) ? '' : rawConduct
-
-        if (conductError) {
-            console.error('[1С] помилка проведення ПКО:', conductError)
-            showToast('Оплата створена, але НЕ ПРОВЕДЕНА: ' + conductError.slice(0, 150), true)
-        } else {
-            showSuccessAnimation()
-            showToast(`Оплата ${fmt(amount)} ₴ успішно проведена!`)
-        }
-
-        closePaymentModal()
-
-        if (!conductError) refreshAfterSubmit(pointId, -amount)
-        else refreshResults()
-
-    } catch (error) {
-        const msg = error && error.message ? error.message : String(error)
-
-        if (msg.includes('Failed to fetch') || msg.toLowerCase().includes('timeout')) {
-            errorBox.textContent = '1С не відповідає. Перевірте інтернет і спробуйте знову.'
-        } else {
-            errorBox.textContent = `Не вдалося провести: ${msg}`
-        }
-
-        errorBox.style.display = 'block'
-
-    } finally {
-        resetBtn(btn, 'Провести оплату')
-        if (cancelBtn) cancelBtn.disabled = false
-    }
+    if (cancelBtn) cancelBtn.disabled = false;
 }
 
 

@@ -495,128 +495,51 @@ function applyShipmentSearch() {
 // ============================================================
 
 async function submitShipment() {
-    // защита от двойного клика
-    if (shipmentSending) return
+    if (shipmentSending) return;
+    const pointId = shipmentPointId;
+    if (!pointId) return;
 
-    const pointId = shipmentPointId
-    if (!pointId) return
-
-    // собираем только позиции с количеством больше нуля
-    const items = []
+    const items = [];
     shipmentItems.forEach(it => {
-        if (it.qty > 0) {
-            items.push({
-                code: it.code,
-                name: it.name,
-                price: it.price,
-                qty: it.qty
-            })
-        }
-    })
+        if (it.qty > 0) items.push({ code: it.code, name: it.name, price: it.price, qty: it.qty });
+    });
 
-    // нечего отправлять
     if (!items.length) {
-        showToast('Додайте хоча б одну позицію', true)
-        return
+        showToast('Додайте хоча б одну позицію', true);
+        return;
     }
 
-    // отгрузка это онлайн операция, без сети нельзя
     if (!navigator.onLine) {
-        showToast('Немає мережі! Відвантаження можна відправити лише онлайн.', true)
-        return
+        showToast('Немає мережі! Відвантаження можна відправити лише онлайн.', true);
+        return;
     }
 
-    // payload который ждет 1с
-    // request_id для защиты от дублей на стороне сервера
     const payload = {
         point_id: pointId,
         technician_id: currentUser ? currentUser.id : '',
         request_id: shipmentRequestId || newRequestId(),
         items
-    }
+    };
 
-    const btn = document.getElementById('shipmentSendBtn')
-    const closeBtn = document.querySelector('#shipmentOverlay .modal-close')
+    const btn = document.getElementById('shipmentSendBtn');
+    const closeBtn = document.querySelector('#shipmentOverlay .modal-close');
 
-    // блокируем форму на время отправки
-    shipmentSending = true
-    if (closeBtn) closeBtn.disabled = true
-    setBtnLoading(btn, 'Відправка...')
+    shipmentSending = true;
 
-    let success = false
-    let conductError = ''
-
-    try {
-        const res = await fetchWithTimeout(
-            `${apiBase}/shipment?v=${APP_CONFIG.apiVersion}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // код курьера уходит и в заголовке и в теле
-                    // на всякий случай, 1с может проверить любой из них
-                    'X-User-Code': currentUser ? currentUser.id : ''
-                },
-                body: JSON.stringify(payload)
-            },
-            APP_CONFIG.sendTimeoutMs
-        )
-
-        if (!res.ok) {
-            const errText = await res.text()
-            throw new Error((errText && errText.slice(0, 200)) || 'Помилка сервера 1С')
+    await submitDocument({
+        endpoint: 'shipment',
+        payload,
+        btn,
+        closeBtn,
+        successText: 'Відвантаження створено в 1С',
+        errorPrefix: 'Не вдалося відвантажити',
+        onSuccess: () => {
+            shipmentItems = [];
+            shipmentPointId = null;
+            closeShipmentModal();
         }
+    });
 
-        // 1с может ответить 200 но с полем conduct_error
-        // это значит что документ записался но не провелся
-        let body = null
-        try { body = await res.json() } catch (e) {}
-
-        const raw = (body && body.conduct_error != null) ? String(body.conduct_error) : ''
-
-        // пустое поле или слеш считаются успехом
-        conductError = isBlankServerError(raw) ? '' : raw
-
-        success = true
-
-    } catch (err) {
-        const message = err && err.message ? err.message : String(err)
-
-        // отделяем сетевые ошибки от ошибок сервера
-        // для курьера формулировки разные
-        const msg = (message.includes('Failed to fetch') || message.toLowerCase().includes('timeout'))
-            ? '1С не відповідає. Відвантаження не відправлено.'
-            : `Не вдалося відвантажити: ${message}`
-
-        showToast(msg, true)
-
-    } finally {
-        shipmentSending = false
-        if (closeBtn) closeBtn.disabled = false
-        resetBtn(btn, 'Відвантажити')
-
-        if (success) {
-            // если 1с вернула ошибку проведения показываем отдельно
-            // документ уже создан, но в учет не пошел
-            if (conductError) {
-                console.error('[1С] відвантаження не проведено:', conductError)
-                showToast('Документ створено, але НЕ ПРОВЕДЕНО: ' + conductError.slice(0, 150), true)
-            } else {
-                showSuccessAnimation()
-                showToast('Відвантаження створено в 1С')
-            }
-
-            // чистим состояние и закрываем модалку
-            shipmentItems = []
-            shipmentPointId = null
-            closeShipmentModal()
-
-            // тихо обновляем данные точек, чтобы везде подтянулись свежие
-            loadData({ silent: true })
-        } else {
-            // отправка не прошла, оставляем форму как есть
-            // пересчитываем итог, на случай если кнопка подвисла в loading
-            updateShipmentSummary()
-        }
-    }
+    shipmentSending = false;
+    if (shipmentPointId) updateShipmentSummary();
 }

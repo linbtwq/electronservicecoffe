@@ -319,7 +319,6 @@ function renderNoteList() {
 
 async function submitNote() {
     if (noteSending || !notePointId) return;
-
     const ta = document.getElementById('noteText');
     const text = ta.value.trim();
     if (!text) return;
@@ -341,62 +340,28 @@ async function submitNote() {
     const closeBtn = document.querySelector('#noteOverlay .modal-close');
 
     noteSending = true;
-    if (closeBtn) closeBtn.disabled = true;
-    setBtnLoading(btn, 'Збереження...');
 
-    let saved = null;
-
-    try {
-        const res = await fetchWithTimeout(
-            `${apiBase}/notes?v=${APP_CONFIG.apiVersion}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-User-Code': currentUser ? currentUser.id : ''
-                },
-                body: JSON.stringify(payload)
-            },
-            APP_CONFIG.sendTimeoutMs
-        );
-
-        if (!res.ok) {
-            const errText = await res.text();
-            throw new Error((errText && errText.slice(0, 200)) || 'Помилка сервера 1С');
-        }
-
-        let body = null;
-        try { body = await res.json(); } catch (e) {}
-
-        saved = (body && body.note) ? body.note : {
-            author: currentUser ? currentUser.name : '',
-            date: '',
-            tag: payload.tag,
-            text: payload.text
-        };
-    } catch (err) {
-        const message = err && err.message ? err.message : String(err);
-        const msg = (message.includes('Failed to fetch') || message.toLowerCase().includes('timeout'))
-            ? '1С не відповідає. Примітку не збережено.'
-            : `Не вдалося зберегти: ${message}`;
-        showToast(msg, true);
-    } finally {
-        noteSending = false;
-        if (closeBtn) closeBtn.disabled = false;
-        resetBtn(btn, 'Зберегти');
-
-        if (saved) {
+    await submitDocument({
+        endpoint: 'notes',
+        payload,
+        btn,
+        closeBtn,
+        loadingText: 'Збереження...',
+        successText: 'Примітку збережено',
+        errorPrefix: 'Не вдалося зберегти',
+        onSuccess: (body) => {
+            const saved = (body && body.note) ? body.note : {
+                author: currentUser ? currentUser.name : '',
+                date: '', tag: payload.tag, text: payload.text
+            };
             noteItems.unshift(saved);
             renderNoteList();
-
             ta.value = '';
             noteTag = '';
-
             noteRequestId = newRequestId();
-
-            showToast('Примітку збережено');
         }
+    });
 
-        updateNoteForm();
-    }
+    noteSending = false;
+    updateNoteForm();
 }

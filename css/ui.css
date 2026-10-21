@@ -1133,3 +1133,56 @@ body.dark-theme .dg-code-chip {
 #scannerCloseBtn:active {
     background: rgba(255, 255, 255, 0.3);
 }
+
+/* ============================================================
+   PULL TO REFRESH
+   ============================================================ */
+.ptr-spinner {
+    position: absolute;
+    top: 165px; /* Стартовая позиция, совпадает с results-container */
+    left: 50%;
+    transform: translateX(-50%) translateY(-40px); /* Изначально спрятан вверху */
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    color: var(--primary);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2; /* под поиском (z-index: 3), над результатами (z-index: 1) */
+}
+
+.ptr-spinner.visible {
+    opacity: 1;
+}
+
+.ptr-spinner.spinning {
+    animation: spin 1s linear infinite;
+}
+
+/* Корректируем позицию для десктопа */
+@media (min-width: 900px) {
+    .ptr-spinner { top: 224px; }
+}
+
+/* Корректируем позицию для мобилки */
+@media (max-width: 480px) {
+    .ptr-spinner {
+        top: calc(var(--mobile-search-top) + var(--mobile-search-stack) + 10px);
+    }
+}
+
+/* Позиция для режима "Машина" (где нет поля поиска) */
+.search-container.machine-mode + .ptr-spinner {
+    top: 158px;
+}
+@media (min-width: 900px) {
+    .search-container.machine-mode + .ptr-spinner { top: 190px; }
+}
+@media (max-width: 480px) {
+    .search-container.machine-mode + .ptr-spinner {
+        top: calc(var(--mobile-search-top) + 54px);
+    }
+}
