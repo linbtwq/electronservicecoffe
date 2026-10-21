@@ -52,12 +52,14 @@ const ASSETS = [
     './javascript/core/utils.js',
     './javascript/core/storage.js',
     './javascript/core/api.js',
+    './javascript/core/store.js',
     './javascript/core/queue.js',
     './javascript/core/locks.js',
     './javascript/core/state.js',
 
     // интерфейсные помощники
     './javascript/ui/icons.js',
+    './javascript/ui/rows.js',
     './javascript/ui/toast.js',
     './javascript/ui/status.js',
     './javascript/ui/focus.js',
@@ -92,7 +94,11 @@ const ASSETS = [
     './javascript/scanner.js',
     './javascript/drawer.js',
     './javascript/machines.js',
-    './javascript/shipment.js'
+    './javascript/shipment.js',
+
+    // кэшируем полифилл сканера для работы офлайн
+    './javascript/zbar-wasm.js',
+    './javascript/barcode-polyfill.js'
 ];
 
 // ============================================================

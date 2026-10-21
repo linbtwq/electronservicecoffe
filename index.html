@@ -43,7 +43,7 @@
         if (localStorage.getItem('darkMode') === 'true') {
             document.documentElement.classList.add('dark-theme-boot');
         }
-        
+
         var savedFont = localStorage.getItem('fontScale');
         if (savedFont) {
             document.documentElement.style.fontSize = savedFont;
@@ -92,7 +92,6 @@
             <div class="search-hint" id="searchHint">Введіть номер точки. 0 покаже всі точки</div>
         </div>
 
-        <!-- Спиннер теперь здесь, вне скроллируемого контейнера -->
         <div id="ptrSpinner" class="ptr-spinner">⟳</div>
 
         <div class="results-container" id="resultsContainer"></div>
@@ -212,6 +211,7 @@
     <script src="javascript/core/state.js"></script>
 
     <script src="javascript/ui/icons.js"></script>
+    <script src="javascript/ui/rows.js"></script>
     <script src="javascript/ui/toast.js"></script>
     <script src="javascript/ui/status.js"></script>
     <script src="javascript/ui/focus.js"></script>
@@ -235,7 +235,21 @@
     <script src="javascript/app/reset.js"></script>
     <script src="javascript/app/init.js"></script>
 
+    <!-- ======================================================= -->
+    <!-- полифилл BarcodeDetector (работает в Safari, Firefox и на iPhone) -->
+    <!-- ======================================================= -->
+    <script src="javascript/zbar-wasm.js"></script>
+    <script src="javascript/barcode-polyfill.js"></script>
+    <script>
+        try {
+            window['BarcodeDetector'].getSupportedFormats();
+        } catch (e) {
+            window['BarcodeDetector'] = barcodeDetectorPolyfill.BarcodeDetectorPolyfill;
+        }
+    </script>
+
     <script src="javascript/optimize.js"></script>
+    <script src="javascript/core/store.js"></script>
     <script src="javascript/assortments.js"></script>
     <script src="javascript/recount.js"></script>
     <script src="javascript/notes.js"></script>
