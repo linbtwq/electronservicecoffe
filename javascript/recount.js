@@ -206,14 +206,15 @@ async function openRecountModal(pointId) {
             return
         }
 
+        
         // нормализуем поля из 1с
-        // actual изначально равен book, курьер меняет только если реально другое
+        // actual изначально равен book, но не меньше нуля
         recountItems = data.map(it => ({
             Code: String(it.Code || ''),
             Name: String(it.Name || ''),
             price: Number(it.price) || 0,
             book: Number(it.book) || 0,
-            actual: Number(it.book) || 0
+            actual: Math.max(0, Math.round(Number(it.book) || 0))
         }))
 
         // сервер вернул пустой массив, значит нечего пересчитывать
@@ -260,10 +261,7 @@ function renderRecountBody() {
             </div>
 
             <div id="recountGrid" class="assort-grid" style="margin-top:14px;">
-                                ${recountItems.map((it, i) => {
-                    // если число дробное (есть остаток от деления на 1), шаг 0.01. Иначе 1.
-                    const step = Number(it.book) % 1 !== 0 ? 0.01 : 1;
-                    
+                                                ${recountItems.map((it, i) => {
                     return renderProductRow({
                         idx: i,
                         code: it.Code,
@@ -272,7 +270,7 @@ function renderRecountBody() {
                         showHeadPrice: true,
                         dataAttr: 'data-recount-row',
                         col1: { label: 'Облікове', value: fmt(it.book), isStatic: true },
-                        col2: { label: 'Фактичне', isInput: true, inputValue: it.actual, step: step },
+                        col2: { label: 'Фактичне', isInput: true, inputValue: it.actual },
                         col3: { label: 'Відхилення', value: '0 шт · 0 ₴', isStatic: true, className: 'recount-deviation zero' }
                     });
                 }).join('')}
@@ -282,7 +280,7 @@ function renderRecountBody() {
 
     const grid = document.getElementById('recountGrid')
 
-        grid.addEventListener('click', e => {
+    grid.addEventListener('click', e => {
         const btn = e.target.closest('.qty-btn')
         if (!btn) return
 
@@ -293,10 +291,8 @@ function renderRecountBody() {
         if (!recountItems[idx]) return
 
         const step = Number(btn.dataset.step) || 0
-        
-        // убрали Math.max(0, ...). добавили округление до 3 знаков после запятой.
-        const newValue = recountItems[idx].actual + step;
-        recountItems[idx].actual = Math.round(newValue * 1000) / 1000;
+
+        recountItems[idx].actual = Math.max(0, recountItems[idx].actual + step)
 
         const inp = row.querySelector('.qty-input')
         if (inp) inp.value = recountItems[idx].actual
@@ -314,16 +310,9 @@ function renderRecountBody() {
         const idx = Number(row.dataset.idx)
         if (!recountItems[idx]) return
 
-        // разрешаем вводить минус и точку (для дробных остатков)
-        let val = e.target.value.replace(/[^\d.-]/g, '');
+        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6)
         
-        // Оставляем только один минус в самом начале
-        if (val.includes('-')) {
-            val = '-' + val.replace(/-/g, '');
-        }
-        
-        e.target.value = val.slice(0, 7);
-        recountItems[idx].actual = Number(val) || 0;
+        recountItems[idx].actual = Number(e.target.value) || 0
 
         updateRecountRow(row, idx)
         updateRecountSummary()

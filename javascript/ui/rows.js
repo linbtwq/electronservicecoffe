@@ -17,14 +17,13 @@ function renderProductRow(cfg) {
 
         let contentHtml = '';
 
-                if (col.isInput) {
+            if (col.isInput) {
             const inputAttrs = col.inputAttrs || '';
-            const step = col.step !== undefined ? col.step : 1; // <--- ДОБАВЛЕНО
             contentHtml = `
                 <div class="qty">
-                    <button type="button" class="qty-btn" data-step="-${step}" aria-label="Менше">−</button>
-                    <input type="text" inputmode="decimal" class="qty-input ${col.inputClass || ''}" value="${col.inputValue}" ${inputAttrs}>
-                    <button type="button" class="qty-btn" data-step="${step}" aria-label="Більше">+</button>
+                    <button type="button" class="qty-btn" data-step="-1" aria-label="Менше">−</button>
+                    <input type="text" inputmode="numeric" class="qty-input ${col.inputClass || ''}" value="${col.inputValue}" ${inputAttrs}>
+                    <button type="button" class="qty-btn" data-step="1" aria-label="Більше">+</button>
                 </div>
             `;
         } else if (col.isStatic) {
