@@ -33,6 +33,7 @@ let shipmentPointId = null
 let shipmentRequestId = null
 let shipmentItems = []
 let shipmentSearchQuery = ''
+let shipmentSearchNumeric = false;
 
 // ============================================================
 // блок 2. создание окна
@@ -82,6 +83,7 @@ function closeShipmentModal() {
     shipmentRequestId = null
     shipmentItems = []
     shipmentSearchQuery = ''
+    shipmentSearchNumeric = false 
     if (typeof getTopModal === 'function' && !getTopModal() && typeof restoreFocus === 'function') {
         restoreFocus()
     }
@@ -165,7 +167,16 @@ function renderShipmentBody() {
     body.innerHTML = `
         <div class="assort-top">
             <div class="assort-search-wrap" style="display: flex; gap: 8px;">
-                <input type="search" class="assort-search" id="shipmentSearch" placeholder="Пошук товару..." autocomplete="off" value="${escapeHtml(shipmentSearchQuery)}" style="flex: 1;">
+                <input type="search" class="assort-search" id="shipmentSearch"
+                       placeholder="Пошук товару..." autocomplete="off"
+                       value="${escapeHtml(shipmentSearchQuery)}"
+                       inputmode="${shipmentSearchNumeric ? 'numeric' : 'text'}"
+                       style="flex: 1;">
+                <button type="button" class="dg-scan-btn numeric-toggle ${shipmentSearchNumeric ? 'active' : ''}"
+                        id="shipmentNumericBtn"
+                        aria-label="Цифрова клавіатура"
+                        aria-pressed="${shipmentSearchNumeric ? 'true' : 'false'}"
+                        title="Цифрова клавіатура">123</button>
                 <button type="button" class="dg-scan-btn" id="shipmentScanBtn" aria-label="Сканувати">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="7" y2="12.01"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="17" y1="12" x2="17" y2="12.01"/></svg>
                 </button>
@@ -182,6 +193,18 @@ function renderShipmentBody() {
         searchInput.addEventListener('input', () => {
             shipmentSearchQuery = searchInput.value.trim().toLowerCase()
             applyShipmentSearch()
+        })
+    }
+
+    // Кнопка переключения клавиатуры (numeric ↔ text)
+    const numericBtn = document.getElementById('shipmentNumericBtn')
+    if (numericBtn && searchInput) {
+        numericBtn.addEventListener('click', () => {
+            shipmentSearchNumeric = !shipmentSearchNumeric
+            numericBtn.classList.toggle('active', shipmentSearchNumeric)
+            numericBtn.setAttribute('aria-pressed', shipmentSearchNumeric ? 'true' : 'false')
+            searchInput.setAttribute('inputmode', shipmentSearchNumeric ? 'numeric' : 'text')
+            searchInput.focus()
         })
     }
 

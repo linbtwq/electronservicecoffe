@@ -1012,6 +1012,24 @@ body.dark-theme .dg-code-chip {
     height: 20px;
 }
 
+/* переключатель цифровой клавиатуры */
+.dg-scan-btn.numeric-toggle {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-heading);
+}
+
+.dg-scan-btn.numeric-toggle.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.dg-scan-btn.numeric-toggle.active:active {
+    background: var(--primary-strong);
+}
+
 /* ============================================================
    Экран сканера
    ============================================================ */
