@@ -327,11 +327,17 @@ async function goodsOnSearch() {
 
     try {
         const url = goodsUrl({ q });
-        const res = await fetch(url, {
-            method: 'GET',
-            cache: 'no-store',
-            signal: goodsAbortController.signal
-        });
+        
+        // ИСПРАВЛЕНО: используем fetchWithTimeout вместо fetch
+        const res = await fetchWithTimeout(
+            url,
+            {
+                method: 'GET',
+                cache: 'no-store',
+                signal: goodsAbortController.signal
+            },
+            APP_CONFIG.loadTimeoutMs
+        );
 
         if (!res.ok) {
             const t = await res.text().catch(() => '');
