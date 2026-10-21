@@ -66,18 +66,30 @@ function goodsIconMarkup(kind) {
     return `<svg class="dg-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 }
 
+// остаток на складе сотрудника
+// если поле stock не пришло (не задан склад) ничего не показываем
+function goodsStockHtml(it) {
+    if (it.stock === undefined || it.stock === null) return '';
+    const n = Number(it.stock);
+    if (!isFinite(n)) return '';
+    if (n <= 0) return '<span class="dg-stock dg-stock-out">Немає на складі</span>';
+    const txt = n.toLocaleString('uk-UA', { maximumFractionDigits: 3 });
+    return `<span class="dg-stock dg-stock-in">Залишок: ${escapeHtml(txt)}</span>`;
+}
+
 function goodsItemHtml(it) {
     const rawName = String(it.name || '').trim();
     const displayName = rawName.length ? rawName : 'Позиція без назви';
     const rawCode = String(it.code || '').trim();
     const cleanCode = rawCode.replace(/\s+/g, '');
-
+    
     return `
         <div class="dg-row dg-item" data-id="${escapeHtml(it.id)}" data-type="item">
             <div class="dg-item-icon">${goodsIconMarkup('product')}</div>
             <div class="dg-item-info">
                 <span class="dg-name${rawName ? '' : ' unnamed'}">${escapeHtml(displayName)}</span>
                 ${goodsPriceHtml(it)}
+                ${goodsStockHtml(it)}
             </div>
             ${cleanCode ? `
                 <button type="button" class="dg-code-chip" data-copy="${escapeHtml(cleanCode)}" title="Натисніть, щоб скопіювати">
@@ -312,10 +324,13 @@ async function goodsOnSearch() {
 
     if (navBox) navBox.style.display = 'none';
 
+    // Проверяем кеш (если данные свежие - до 60 секунд)
     if (goodsSearchCache.has(q)) {
         const cached = goodsSearchCache.get(q);
-        renderGoodsSearchResults(cached.items, cached.truncated);
-        return;
+        if (cached && cached.at && (Date.now() - cached.at < 60000)) {
+            renderGoodsSearchResults(cached.items, cached.truncated);
+            return;
+        }
     }
 
     box.innerHTML = goodsSkeleton;
@@ -327,8 +342,6 @@ async function goodsOnSearch() {
 
     try {
         const url = goodsUrl({ q });
-        
-        // ИСПРАВЛЕНО: используем fetchWithTimeout вместо fetch
         const res = await fetchWithTimeout(
             url,
             {
@@ -349,7 +362,9 @@ async function goodsOnSearch() {
 
         const items = Array.isArray(data.items) ? data.items : [];
         if (goodsSearchCache.size > 200) goodsSearchCache.clear();
-        goodsSearchCache.set(q, { items, truncated: !!data.truncated });
+        
+        // Сохраняем в кеш с меткой времени
+        goodsSearchCache.set(q, { items, truncated: !!data.truncated, at: Date.now() });
 
         renderGoodsSearchResults(items, !!data.truncated);
         goodsRendered = false;

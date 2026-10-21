@@ -79,3 +79,44 @@ function updateThemeColor(isDark) {
         meta.content = isDark ? '#111916' : '#146b55'
     } catch (e) {}
 }
+
+// ============================================================
+// блок 3. управление размером шрифта (A / A+ / A++)
+// ============================================================
+
+function initFontScale() {
+    const btn = document.getElementById('fontScaleBtn');
+    if (!btn) return;
+
+    // Доступные размеры базового шрифта (в пикселях)
+    // По умолчанию браузер использует 16px. 
+    // 19px - крупный, 22px - очень крупный.
+    const sizes = ['16px', '19px', '22px'];
+    const labels = ['A', 'A+', 'A++'];
+
+    // Восстанавливаем сохраненный размер
+    let current = localStorage.getItem('fontScale') || '16px';
+    let idx = sizes.indexOf(current);
+    if (idx === -1) idx = 0; // если в кеше мусор, ставим стандартный
+
+    // Функция применения
+    const apply = (size, index) => {
+        document.documentElement.style.fontSize = size;
+        btn.textContent = labels[index];
+    };
+
+    // Применяем при загрузке
+    apply(sizes[idx], idx);
+
+    // По клику переключаем по кругу: 16 -> 19 -> 22 -> 16
+    btn.addEventListener('click', () => {
+        idx = (idx + 1) % sizes.length;
+        const newSize = sizes[idx];
+        
+        localStorage.setItem('fontScale', newSize);
+        apply(newSize, idx);
+    });
+}
+
+// Вызываем инициализацию при загрузке страницы
+document.addEventListener('DOMContentLoaded', initFontScale);

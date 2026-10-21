@@ -1186,3 +1186,7 @@ body.dark-theme .dg-code-chip {
         top: calc(var(--mobile-search-top) + 54px);
     }
 }
+
+.dg-stock { display: block; font-size: 0.78rem; margin-top: 2px; }
+.dg-stock-in { color: #2e7d32; }
+.dg-stock-out { color: #c62828; }

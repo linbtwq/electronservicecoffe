@@ -43,6 +43,11 @@
         if (localStorage.getItem('darkMode') === 'true') {
             document.documentElement.classList.add('dark-theme-boot');
         }
+        
+        var savedFont = localStorage.getItem('fontScale');
+        if (savedFont) {
+            document.documentElement.style.fontSize = savedFont;
+        }
     } catch (e) {}
 })();
 </script>
@@ -68,6 +73,7 @@
 
     <button id="themeToggle" class="theme-toggle" aria-label="Увімкнути темну тему"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></button>
     <button id="clearCacheBtn" class="cache-toggle" title="Очистити кеш" aria-label="Очистити кеш"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg></button>
+    <button id="fontScaleBtn" class="theme-toggle" title="Змінити розмір шрифту" aria-label="Змінити розмір шрифту" style="right: 124px; font-weight: 800; font-size: 15px;">A</button>
 
     <div class="app-wrapper" id="appWrapper">
         <div class="search-container center" id="searchContainer">
