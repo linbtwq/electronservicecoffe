@@ -385,9 +385,14 @@ async function searchShipmentByBarcode(barcode) {
             return;
         }
 
-        const foundName = items[0].name;
-        searchInput.value = foundName;
-        shipmentSearchQuery = foundName.toLowerCase();
+        const foundItem = items[0];
+        
+        // в инпут пишем именно штрих-код (как в drawer)
+        searchInput.value = barcode;
+        
+        // а для фильтрации списка используем 1С-код товара, который вернул сервер
+        shipmentSearchQuery = foundItem.code ? String(foundItem.code).toLowerCase() : foundItem.name.toLowerCase();
+        
         applyShipmentSearch();
     } catch (err) {
         showToast('Помилка пошуку', true);
