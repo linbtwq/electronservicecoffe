@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0f7a63">
+    <meta name="theme-color" content="#146b55">
     <title>1с база</title>
     <link rel="icon" href="data:,">
 
@@ -24,25 +24,36 @@
         var w = window.innerWidth;
         var c = document.documentElement.classList;
 
-        // слабое устройство, мало ядер или мало памяти
         if (reduce || cores <= 2 || mem <= 2) c.add('low-end');
         else if (cores <= 4) c.add('mid-end');
 
-        // сильное устройство
         var high = !reduce && cores > 4 && mem > 4;
         if (high) c.add('is-high');
 
         if (touch) c.add('is-touch');
 
-        // десктоп с мышью или просто широкий экран
         if (fine && !touch && w >= 900) c.add('is-desktop');
         else if (w >= 900) c.add('is-wide');
 
         if (w >= 1400) c.add('is-2xl');
 
-        // экран с повышенной плотностью
         var dpr = window.devicePixelRatio || 1;
         if (dpr >= 1.5) c.add('is-retina');
+    } catch (e) {}
+})();
+</script>
+
+    <!--
+        предотвращает вспышку светлой темы при загрузке
+        для тех у кого включена тёмная тема.
+        класс снимается в initTheme после DOMContentLoaded.
+    -->
+    <script>
+(function () {
+    try {
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark-theme-boot');
+        }
     } catch (e) {}
 })();
 </script>
@@ -54,13 +65,9 @@
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <!-- полоса загрузки вверху экрана -->
     <div id="topProgress" class="top-progress"></div>
-
-    <!-- блок с именем пользователя и кнопкой выхода -->
     <div id="userBadge" class="user-badge"></div>
 
-    <!-- форма входа по пин-коду, показывается если сессии нет -->
     <div id="authOverlay" class="auth-overlay">
         <div class="auth-box">
             <h2>Вхід у систему</h2>
@@ -71,13 +78,10 @@
         </div>
     </div>
 
-    <!-- кнопки темы и очистки кеша -->
     <button id="themeToggle" class="theme-toggle" aria-label="Увімкнути темну тему"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></button>
     <button id="clearCacheBtn" class="cache-toggle" title="Очистити кеш" aria-label="Очистити кеш"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg></button>
 
-    <!-- основной каркас приложения -->
     <div class="app-wrapper" id="appWrapper">
-        <!-- блок поиска и фильтров -->
         <div class="search-container center" id="searchContainer">
             <div class="search-box">
                 <span class="search-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg></span>
@@ -86,7 +90,6 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
             </div>
-            <!-- три кнопки режима поиска -->
             <div class="search-filters" id="searchFilters">
                 <button type="button" class="filter-chip active" data-mode="all">Всі</button>
                 <button type="button" class="filter-chip" data-mode="point">Точка</button>
@@ -95,14 +98,11 @@
             <div class="search-hint" id="searchHint">Введіть номер точки. 0 покаже всі точки</div>
         </div>
 
-        <!-- сюда рендерятся карточки точек -->
         <div class="results-container" id="resultsContainer"></div>
     </div>
 
-    <!-- кнопка возврата к началу списка -->
     <button id="backToTop" class="back-to-top" aria-label="Вгору"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
 
-    <!-- модалка показаний -->
     <div class="modal-overlay" id="modalOverlay">
         <div class="modal-box assort-box">
             <div class="modal-header">
@@ -119,7 +119,6 @@
         </div>
     </div>
 
-    <!-- модалка подтверждения показаний -->
     <div class="modal-overlay" id="confirmOverlay" style="z-index: 1010;">
         <div class="modal-box confirm-box">
             <div class="modal-header">
@@ -146,7 +145,6 @@
         </div>
     </div>
 
-    <!-- модалка оплаты долга -->
     <div class="modal-overlay" id="paymentOverlay" style="z-index: 1020;">
         <div class="modal-box confirm-box">
             <div class="modal-header">
@@ -174,7 +172,6 @@
         </div>
     </div>
 
-    <!-- универсальный диалог подтверждения -->
     <div class="modal-overlay" id="confirmDialogOverlay" style="z-index: 1500;">
         <div class="modal-box confirm-box">
             <div class="modal-header">
@@ -191,12 +188,10 @@
         </div>
     </div>
 
-    <!-- тост для коротких уведомлений -->
     <div id="toast" class="toast">
         <span id="toastMessage">Успішно!</span>
     </div>
 
-    <!-- индикатор связи внизу слева -->
     <div id="connectionStatus" class="connection-status" title="Натисніть для оновлення">
         <div class="status-dot"></div>
         <div class="status-content">
@@ -206,7 +201,6 @@
         <span class="refresh-icon">⟳</span>
     </div>
 
-    <!-- версия приложения внизу экрана -->
     <div id="appVersion" class="app-version"></div>
 
     <!--
@@ -280,11 +274,11 @@
     <script src="javascript/recount.js"></script>
     <script src="javascript/notes.js"></script>
     <script src="javascript/goods.js"></script>
+    <script src="javascript/scanner.js"></script>
     <script src="javascript/drawer.js"></script>
     <script src="javascript/machines.js"></script>
     <script src="javascript/shipment.js"></script>
 
-    <!-- предупреждение в консоли если версия не поменялась с прошлого запуска -->
     <script>
     (function () {
         try {

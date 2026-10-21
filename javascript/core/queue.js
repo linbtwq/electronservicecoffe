@@ -57,6 +57,8 @@ let _queueReady = false
 // вызывается один раз при запуске приложения.
 // сначала пробует indexedDB, при ошибке падает на localStorage.
 // попутно переносит старые записи из localStorage в indexedDB.
+// после успешной миграции LS-ключ удаляется,
+// чтобы старые данные не могли воскреснуть при очистке indexedDB.
 // ============================================================
 
 async function initQueueStorage() {
@@ -74,14 +76,26 @@ async function initQueueStorage() {
             const legacy = readJsonSafe(QUEUE_LS_KEY, [])
             if (Array.isArray(legacy) && legacy.length) {
                 queue = legacy
-                await localDB.save(QUEUE_DB_KEY, queue)
+                try {
+                    await localDB.save(QUEUE_DB_KEY, queue)
+                    // успешно мигрировали - чистим LS чтобы не дублировалось
+                    localStorage.removeItem(QUEUE_LS_KEY)
+                } catch (e) {
+                    // если запись в БД упала, LS оставляем как резерв
+                    console.warn('[queue] не вдалося мігрувати чергу в IndexedDB', e)
+                }
             }
         }
         if (!failed.length) {
             const legacy = readJsonSafe(FAILED_LS_KEY, [])
             if (Array.isArray(legacy) && legacy.length) {
                 failed = legacy
-                await localDB.save(FAILED_DB_KEY, failed)
+                try {
+                    await localDB.save(FAILED_DB_KEY, failed)
+                    localStorage.removeItem(FAILED_LS_KEY)
+                } catch (e) {
+                    console.warn('[queue] не вдалося мігрувати failed в IndexedDB', e)
+                }
             }
         }
 

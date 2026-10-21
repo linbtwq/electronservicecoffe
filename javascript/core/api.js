@@ -13,6 +13,7 @@
 // зависимости
 // - config.js дает APP_CONFIG
 // - core/state.js дает apiBase
+// - auth.js дает currentUser (для заголовка X-User-Code)
 // ============================================================
 
 
@@ -44,12 +45,20 @@ const newRequestId = () => (window.crypto && crypto.randomUUID)
     ? crypto.randomUUID()
     : Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
 
-// отправляет данные в формате json с общим таймаутом отправки
+// отправляет данные в формате json с общим таймаутом отправки.
+// код пользователя уходит и в заголовке X-User-Code
+// (как во всех остальных ручных вызовах fetchWithTimeout),
+// и в теле payload через technician_id.
 const postJson = (path, payload) => fetchWithTimeout(
     `${apiBase}/${path}?v=${APP_CONFIG.apiVersion}`,
     {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(typeof currentUser !== 'undefined' && currentUser
+                ? { 'X-User-Code': currentUser.id }
+                : {})
+        },
         body: JSON.stringify(payload)
     },
     APP_CONFIG.sendTimeoutMs
@@ -61,8 +70,14 @@ const postJson = (path, payload) => fetchWithTimeout(
 //
 // показывается при старте fetch и уходит сама через секунду с лишним.
 // перезапуск анимации делается через принудительный reflow
-// чтобы полоса мигнула даже если уже была активна
+// чтобы полоса мигнула даже если уже была активна.
+//
+// таймер скрытия хранится в переменной и сбрасывается
+// при новом вызове hideTopProgress, иначе несколько параллельных
+// fetch'ей могли погасить полоску раньше времени.
 // ============================================================
+
+let _topProgressHideTimer = null
 
 function showTopProgress() {
     const el = document.getElementById('topProgress')
@@ -75,5 +90,6 @@ function showTopProgress() {
 function hideTopProgress() {
     const el = document.getElementById('topProgress')
     if (!el) return
-    setTimeout(() => el.classList.remove('active'), 1800)
+    clearTimeout(_topProgressHideTimer)
+    _topProgressHideTimer = setTimeout(() => el.classList.remove('active'), 1800)
 }

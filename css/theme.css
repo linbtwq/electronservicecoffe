@@ -55,7 +55,8 @@
    включается классом body.dark-theme
    ============================================================ */
 
-body.dark-theme {
+body.dark-theme,
+html.dark-theme-boot {
     --bg: #111916;
     --bg-soft: #17211c;
     --surface: #19231f;
@@ -87,6 +88,11 @@ body.dark-theme {
     --shadow-modal: 0 18px 48px rgba(0, 0, 0, 0.55);
 }
 
+/* отдельно на html чтобы не было белой рамки по краям */
+html.dark-theme-boot {
+    background-color: #111916;
+    color-scheme: dark;
+}
 /* ============================================================
    блок 3
    базовый фон без анимации
@@ -303,6 +309,8 @@ body.dark-theme .point-code {
     .card-actions .action-btn[data-action="recount"]:hover,
     .card-actions .action-btn[data-action="note"]:hover {
         background: var(--surface-2);
+                /* fallback для браузеров без color-mix */
+        border-color: rgba(101, 119, 111, 0.3);
         border-color: color-mix(in srgb, var(--text-muted) 30%, transparent);
     }
 }
