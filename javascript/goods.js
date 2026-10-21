@@ -119,7 +119,7 @@ function initDrawerGoods() {
         
         <div class="dg-search-wrap">
             <div class="dg-search-inner">
-                <input type="search" id="goodsSearch" autocomplete="off"
+                <input type="text" id="goodsSearch" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
                     placeholder="Пошук за назвою або кодом" aria-label="Пошук номенклатури">
                 <button type="button" class="dg-clear" id="goodsClear" aria-label="Очистити" hidden>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
