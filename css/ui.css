@@ -682,6 +682,7 @@ body.drawer-open .drawer-handle {
     letter-spacing: 0.04em;
     color: var(--text-muted);
 }
+
 /* ============================================================
    поиск в каталоге + кнопка сканера
    ============================================================ */
@@ -713,6 +714,14 @@ body.drawer-open .drawer-handle {
     transition: all 0.2s ease;
 }
 
+/* Прячем нативный крестик браузера (Safari/Chrome), чтобы не было двух */
+.dg-search-inner input::-webkit-search-cancel-button,
+.dg-search-inner input::-webkit-search-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
 .dg-search-inner input:focus {
     border-color: var(--primary);
     background: var(--surface);
@@ -742,6 +751,7 @@ body.drawer-open .drawer-handle {
 @media (hover: hover) and (pointer: fine) {
     .dg-clear:hover { background: var(--border); color: var(--text-heading); }
 }
+
 /* навигация по группам */
 .dg-nav {
     display: flex;
@@ -978,19 +988,6 @@ body.dark-theme .dg-code-chip {
 /* ============================================================
    БЛОК СКАНЕРА ШТРИХ-КОДОВ
    ============================================================ */
-
-/* обертка поиска, чтобы кнопка была справа от инпута */
-.dg-search-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 12px 10px;
-    background: var(--surface-solid);
-}
-.dg-search-inner {
-    position: relative;
-    flex: 1;
-}
 
 /* кнопка сканера */
 .dg-scan-btn {
