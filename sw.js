@@ -88,6 +88,7 @@ const ASSETS = [
     './javascript/recount.js',
     './javascript/notes.js',
     './javascript/goods.js',
+    './javascript/scanner.js',
     './javascript/drawer.js',
     './javascript/machines.js',
     './javascript/shipment.js'

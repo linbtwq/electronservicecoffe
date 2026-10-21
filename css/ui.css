@@ -682,15 +682,25 @@ body.drawer-open .drawer-handle {
     letter-spacing: 0.04em;
     color: var(--text-muted);
 }
+/* ============================================================
+   поиск в каталоге + кнопка сканера
+   ============================================================ */
 
-/* поиск в каталоге */
-.dg-search {
-    position: relative;
+.dg-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 4px 12px 10px;
     background: var(--surface-solid);
 }
 
-.dg-search input {
+.dg-search-inner {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.dg-search-inner input {
     width: 100%;
     min-height: 42px;
     padding: 10px 40px 10px 14px;
@@ -703,7 +713,7 @@ body.drawer-open .drawer-handle {
     transition: all 0.2s ease;
 }
 
-.dg-search input:focus {
+.dg-search-inner input:focus {
     border-color: var(--primary);
     background: var(--surface);
     box-shadow: 0 0 0 3px var(--primary-soft);
@@ -711,7 +721,7 @@ body.drawer-open .drawer-handle {
 
 .dg-clear {
     position: absolute;
-    right: 18px;
+    right: 8px;
     top: 50%;
     transform: translateY(-50%);
     width: 26px;
@@ -732,7 +742,6 @@ body.drawer-open .drawer-handle {
 @media (hover: hover) and (pointer: fine) {
     .dg-clear:hover { background: var(--border); color: var(--text-heading); }
 }
-
 /* навигация по группам */
 .dg-nav {
     display: flex;
@@ -964,4 +973,119 @@ body.dark-theme .dg-code-chip {
 .dg-retry:active {
     transform: scale(0.95);
     background: var(--surface-2);
+}
+
+/* ============================================================
+   БЛОК СКАНЕРА ШТРИХ-КОДОВ
+   ============================================================ */
+
+/* обертка поиска, чтобы кнопка была справа от инпута */
+.dg-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px 10px;
+    background: var(--surface-solid);
+}
+.dg-search-inner {
+    position: relative;
+    flex: 1;
+}
+
+/* кнопка сканера */
+.dg-scan-btn {
+    flex: 0 0 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.dg-scan-btn:active {
+    transform: scale(0.92);
+    background: var(--surface-3);
+}
+.dg-scan-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* экран со сканером */
+#barcodeScannerOverlay {
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 3000; /* Поверх всех окон */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.scanner-box {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 600px;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #000;
+}
+@media (min-width: 600px) {
+    .scanner-box {
+        height: 80vh;
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+}
+
+/* видео с камеры */
+#scannerVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* лазерная линия (для красоты) */
+.scanner-laser {
+    position: absolute;
+    top: 20%;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: #10b981;
+    box-shadow: 0 0 12px #10b981;
+    animation: scanMove 2.5s infinite linear;
+}
+@keyframes scanMove {
+    0% { top: 20%; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 80%; opacity: 0; }
+}
+
+/*кнопка закрытия сканера */
+#scannerCloseBtn {
+    position: absolute;
+    bottom: max(40px, env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 14px 32px;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+#scannerCloseBtn:active {
+    background: rgba(255,255,255,0.3);
 }
