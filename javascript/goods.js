@@ -355,61 +355,78 @@ async function goodsOnSearch() {
 }
 
 // ============================================================
-// блок 7. поиск по ШТРИХ-КОДУ (вызывается из scanner.js)
+// блок 7. поиск по штрих-коду (вызывается из scanner.js)
 // ============================================================
 
 async function searchGoodsByBarcode(barcode) {
-    const box = document.getElementById('goodsList');
+    const box    = document.getElementById('goodsList');
     const navBox = document.getElementById('goodsNav');
-    const input = document.getElementById('goodsSearch');
+    const input  = document.getElementById('goodsSearch');
 
     if (!box) return;
 
-    // Визуально вставляем штрих-код в строку поиска
+    // нормализуем: убираем любые пробелы и переводы строк
+    const cleanBarcode = String(barcode || '').replace(/\s+/g, '');
+
+    if (!cleanBarcode) {
+        box.innerHTML = emptyStateHtml('Порожній штрих-код', '24px 16px', 'alert');
+        return;
+    }
+
+    // визуально вставляем штрих-код в строку поиска
     if (input) {
-        input.value = barcode;
+        input.value = cleanBarcode;
         const clearBtn = document.getElementById('goodsClear');
         if (clearBtn) clearBtn.hidden = false;
     }
-    
+
     if (navBox) navBox.style.display = 'none';
     box.innerHTML = goodsSkeleton;
 
-    // Отменяем предыдущие запросы
+    // отменяем предыдущие запросы
     const seq = ++goodsSearchSeq;
     if (goodsAbortController) goodsAbortController.abort();
     goodsAbortController = new AbortController();
 
     try {
         const u = currentUser ? encodeURIComponent(currentUser.id) : '';
-        
-        // ВАЖНО: Отправляем параметр barcode вместо q
-        const url = `${apiBase}/goods?u=${u}&barcode=${encodeURIComponent(barcode)}&t=${Date.now()}`;
-        
-        const res = await fetch(url, {
-            method: 'GET',
-            cache: 'no-store',
-            signal: goodsAbortController.signal
-        });
+        const url = `${apiBase}/goods?u=${u}&barcode=${encodeURIComponent(cleanBarcode)}&t=${Date.now()}`;
+
+        // используем fetchWithTimeout как везде в проекте,
+        // иначе при зависшей 1С пользователь видит вечный скелетон
+        const res = await fetchWithTimeout(
+            url,
+            {
+                method: 'GET',
+                cache: 'no-store',
+                signal: goodsAbortController.signal
+            },
+            APP_CONFIG.loadTimeoutMs
+        );
 
         if (!res.ok) {
             const t = await res.text().catch(() => '');
             throw new Error((t && t.slice(0, 300)) || ('HTTP ' + res.status));
         }
-        
+
         const data = await res.json();
-        
+
         if (seq !== goodsSearchSeq) return;
 
-        // 1С может вернуть как массив items, так и просто массив
-        const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+        // 1С может вернуть как объект с items, так и просто массив
+        const items = Array.isArray(data.items)
+            ? data.items
+            : (Array.isArray(data) ? data : []);
 
         if (items.length === 0) {
-            box.innerHTML = emptyStateHtml('Товар з таким штрих-кодом не знайдено', '24px 16px', 'search');
+            box.innerHTML = emptyStateHtml(
+                `Товар зі штрих-кодом ${cleanBarcode} не знайдено`,
+                '24px 16px',
+                'search'
+            );
             return;
         }
 
-        // Отрисовываем результат (передаем truncated = false)
         renderGoodsSearchResults(items, false);
 
     } catch (err) {
@@ -418,72 +435,11 @@ async function searchGoodsByBarcode(barcode) {
         box.innerHTML = goodsErrorHtml(err, false);
     }
 }
+
 
 // ============================================================
 // блок 8. отрисовка результатов поиска
 // ============================================================
-
-// ============================================================
-// поиск по штрих-коду (вызывается из scanner.js)
-// ============================================================
-async function searchGoodsByBarcode(barcode) {
-    const box = document.getElementById('goodsList');
-    const navBox = document.getElementById('goodsNav');
-    const input = document.getElementById('goodsSearch');
-
-    if (!box) return;
-
-    // Визуально вставляем штрих-код в строку поиска
-    if (input) {
-        input.value = barcode;
-        const clearBtn = document.getElementById('goodsClear');
-        if (clearBtn) clearBtn.hidden = false;
-    }
-    
-    if (navBox) navBox.style.display = 'none';
-    box.innerHTML = goodsSkeleton;
-
-    // Отменяем предыдущие запросы
-    const seq = ++goodsSearchSeq;
-    if (goodsAbortController) goodsAbortController.abort();
-    goodsAbortController = new AbortController();
-
-    try {
-        const u = currentUser ? encodeURIComponent(currentUser.id) : '';
-        
-        // ВАЖНО: Отправляем параметр barcode
-        const url = `${apiBase}/goods?u=${u}&barcode=${encodeURIComponent(barcode)}&t=${Date.now()}`;
-        
-        const res = await fetch(url, {
-            method: 'GET',
-            cache: 'no-store',
-            signal: goodsAbortController.signal
-        });
-
-        if (!res.ok) {
-            const t = await res.text().catch(() => '');
-            throw new Error((t && t.slice(0, 300)) || ('HTTP ' + res.status));
-        }
-        
-        const data = await res.json();
-        
-        if (seq !== goodsSearchSeq) return;
-
-        const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
-
-        if (items.length === 0) {
-            box.innerHTML = emptyStateHtml('Товар з таким штрих-кодом не знайдено', '24px 16px', 'search');
-            return;
-        }
-
-        renderGoodsSearchResults(items, false);
-
-    } catch (err) {
-        if (err.name === 'AbortError') return;
-        if (seq !== goodsSearchSeq) return;
-        box.innerHTML = goodsErrorHtml(err, false);
-    }
-}
 
 function renderGoodsSearchResults(items, truncated) {
     const box = document.getElementById('goodsList');
