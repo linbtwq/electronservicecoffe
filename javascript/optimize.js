@@ -13,11 +13,6 @@
 // все что делает этот файл можно отключить без потери функциональности.
 // поэтому весь код обернут в немедленно вызываемую функцию
 // чтобы не засорять глобальную область.
-//
-// зависимости
-// файл использует только стандартные браузерные api.
-// плюс аккуратно трогает window.renderStatus если он уже объявлен.
-// поэтому optimize.js должен подключаться после ui/status.js.
 // ============================================================
 
 (function () {
@@ -25,33 +20,21 @@
 
     // ============================================================
     // блок 1. общий ограничитель частоты вызовов
-    //
-    // назначает функцию window.throttle если ее еще нет.
-    // throttle принимает функцию и минимальный интервал в миллисекундах.
-    // возвращает обертку которая не даст вызывать функцию чаще чем нужно.
-    //
-    // остальные модули могут просто проверять typeof window.throttle
-    // и использовать его если он есть.
     // ============================================================
 
     if (typeof window.throttle !== 'function') {
         window.throttle = function (fn, wait) {
-            // время последнего фактического вызова
             let last = 0;
-            // идентификатор отложенного вызова
             let timer = null;
 
             return function (...args) {
                 const now = Date.now();
                 const remain = wait - (now - last);
 
-                // если минимальный интервал уже прошел вызываем сразу
                 if (remain <= 0) {
                     last = now;
                     fn.apply(this, args);
                 } else if (!timer) {
-                    // иначе ставим один отложенный вызов на остаток времени
-                    // повторные вызовы в этот промежуток игнорируются
                     timer = setTimeout(() => {
                         last = Date.now();
                         timer = null;
@@ -64,10 +47,6 @@
 
     // ============================================================
     // блок 2. пауза анимаций в скрытой вкладке
-    //
-    // когда вкладка скрыта css-анимации все равно работают и жрут батарею.
-    // ставим класс is-hidden на body.
-    // css в mobile.css ставит animation-play-state paused для этого класса.
     // ============================================================
 
     document.addEventListener('visibilitychange', () => {
@@ -76,18 +55,13 @@
 
     // ============================================================
     // блок 3. пропуск обновления статуса в скрытой вкладке
-    //
-    // renderStatus пересчитывает индикатор связи внизу экрана.
-    // в скрытой вкладке это бесполезная работа.
-    //
-    // оборачиваем функцию только если она уже существует.
-    // renderStatus объявлен в ui/status.js, который подключается раньше optimize.js
     // ============================================================
 
-    if (typeof window.renderStatus === 'function') {
+    function wrapRenderStatus() {
+        if (typeof window.renderStatus !== 'function') return;
+
         const origRenderStatus = window.renderStatus;
         window.renderStatus = function (...args) {
-            // в скрытой вкладке просто выходим
             if (document.hidden) return;
             return origRenderStatus.apply(this, args);
         };
@@ -95,30 +69,38 @@
 
     // ============================================================
     // блок 4. упрощение карточек во время быстрой прокрутки
-    //
-    // при быстрой прокрутке анимации и тени на карточках тормозят.
-    // ставим класс is-scrolling на контейнер результатов.
-    // css в mobile.css отключает transition у карточек пока класс активен.
-    //
-    // класс снимается через 200 миллисекунд после последнего скролла.
-    // такой таймер достаточен чтобы прокрутка успела остановиться.
     // ============================================================
 
-    const resultsContainer = document.getElementById('resultsContainer');
-    if (resultsContainer) {
+    function attachResultsScroll() {
+        const resultsContainer = document.getElementById('resultsContainer');
+        if (!resultsContainer) return;
+
         let scrollTimer = null;
 
         resultsContainer.addEventListener('scroll', () => {
-            // ставим класс только один раз за серию скроллов
             if (!resultsContainer.classList.contains('is-scrolling')) {
                 resultsContainer.classList.add('is-scrolling');
             }
-            // сдвигаем таймер снятия класса
             clearTimeout(scrollTimer);
             scrollTimer = setTimeout(() => {
                 resultsContainer.classList.remove('is-scrolling');
             }, 200);
         }, { passive: true });
+    }
+
+    // ============================================================
+    // блок 5. автозапуск инициализации
+    // ============================================================
+
+    function initOptimizations() {
+        wrapRenderStatus();
+        attachResultsScroll();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initOptimizations);
+    } else {
+        initOptimizations();
     }
 
 })();

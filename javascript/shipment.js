@@ -16,10 +16,6 @@
 // 3. сотрудник указывает количество по каждой позиции
 // 4. приложение отправляет в 1с данные для накладной
 //
-// про ограничение количества
-// ввести больше чем есть на складе нельзя
-// на каждое изменение проверяется остаток позиции
-//
 // зависимости
 // - globalData из core/state.js дает список точек
 // - fetchWithTimeout, newRequestId, showToast, escapeHtml из core/api.js
@@ -31,51 +27,26 @@
 // index.html подключает shipment.js после после app-модулей
 // ============================================================
 
-// ============================================================
-// блок 1. состояние формы отгрузки
-//
-// переменные живут между открытием и закрытием окна.
-// при закрытии окна значения сбрасываются в closeShipmentModal.
-// ============================================================
-
-// не допускает параллельную загрузку складских остатков
 let shipmentLoading = false
-
-// блокирует повторную отправку документа
 let shipmentSending = false
-
-// идентификатор выбранной точки или null
 let shipmentPointId = null
-
-// уникальный идентификатор защищает документ от повторного создания
 let shipmentRequestId = null
-
-// выбранные товары и их количества
-// количество для позиции не может превышать складской остаток
 let shipmentItems = []
-
-// строка поиска в нижнем регистре для фильтрации списка
 let shipmentSearchQuery = ''
 
 // ============================================================
 // блок 2. создание окна
-//
-// окно создается один раз и дальше переиспользуется.
-// список позиций заполняется отдельно в renderShipmentBody.
 // ============================================================
 
 function ensureShipmentModal() {
-    // используем существующее окно если оно уже создано
     let el = document.getElementById('shipmentOverlay')
     if (el) return el
 
-    // создаем контейнер окна
     el = document.createElement('div')
     el.className = 'modal-overlay'
     el.id = 'shipmentOverlay'
     el.style.zIndex = '1005'
 
-    // содержимое списка добавляется отдельно при открытии окна
     el.innerHTML = `
         <div class="modal-box assort-box">
             <div class="modal-header">
@@ -94,41 +65,23 @@ function ensureShipmentModal() {
     `
 
     document.body.appendChild(el)
-
-    // кнопка в заголовке закрывает окно
     el.querySelector('.modal-close').addEventListener('click', closeShipmentModal)
-
-    // кнопка отправляет документ после проверки формы
     el.querySelector('#shipmentSendBtn').addEventListener('click', submitShipment)
-
-    // нажатие вне окна закрывает форму
-    el.addEventListener('click', (e) => {
-        if (e.target === el) closeShipmentModal()
-    })
-
+    el.addEventListener('click', (e) => { if (e.target === el) closeShipmentModal() })
     return el
 }
 
 // ============================================================
 // блок 3. закрытие окна и очистка состояния
-//
-// во время отправки окно не закрывается.
-// после закрытия сбрасываем данные текущей отгрузки.
 // ============================================================
 
 function closeShipmentModal() {
-    // оставляем окно открытым пока сервер обрабатывает документ
     if (shipmentSending) return
-
     document.getElementById('shipmentOverlay')?.classList.remove('active')
-
-    // очищаем данные предыдущей отгрузки
     shipmentPointId = null
     shipmentRequestId = null
     shipmentItems = []
     shipmentSearchQuery = ''
-
-    // возвращаем фокус только если другое окно не перекрывает это
     if (typeof getTopModal === 'function' && !getTopModal() && typeof restoreFocus === 'function') {
         restoreFocus()
     }
@@ -136,63 +89,33 @@ function closeShipmentModal() {
 
 // ============================================================
 // блок 4. открытие формы и загрузка складских остатков
-//
-// порядок такой
-// 1. ищем точку в общем списке
-// 2. сбрасываем данные прошлой формы
-// 3. показываем шапку и скелетон
-// 4. грузим складские остатки курьера
-// 5. нормализуем поля и рендерим список
-//
-// из 1с приходят поля Code, Name, price и quantity.
-// quantity это доступное количество на складе.
-// qty изначально ноль, курьер сам его увеличивает.
 // ============================================================
 
 async function openShipmentModal(pointId) {
-    // находим точку в общем списке
     const point = globalData.find(i => String(i.id) === String(pointId))
-
-    // не открываем форму без точки или во время другой загрузки
     if (!point || shipmentLoading) return
 
-    // сохраняем текущий фокус для восстановления после закрытия
     rememberFocus()
-
     const overlay = ensureShipmentModal()
     const sub = document.getElementById('shipmentSub')
     const body = document.getElementById('shipmentBody')
     const summary = document.getElementById('shipmentSummary')
     const sendBtn = document.getElementById('shipmentSendBtn')
 
-    // сбрасываем данные предыдущей формы и создаем ключ запроса
     shipmentPointId = point.id
     shipmentRequestId = newRequestId()
     shipmentItems = []
     shipmentSearchQuery = ''
 
-    // показываем название и код точки
     sub.textContent = [point.point_name || 'Точка', `код ${point.id}`].join(' · ')
-
-    // очищаем итог и блокируем отправку до загрузки данных
     summary.textContent = ''
     sendBtn.disabled = true
 
-    // показываем скелетон пока грузятся данные
-    body.innerHTML = `
-        <div class="assort-loading">
-            <div class="skeleton skeleton-text" style="width:60%;"></div>
-            <div class="skeleton skeleton-text" style="width:80%;"></div>
-            <div class="skeleton skeleton-text" style="width:50%;"></div>
-        </div>
-    `
-
+    body.innerHTML = `<div class="assort-loading"><div class="skeleton skeleton-text" style="width:60%;"></div><div class="skeleton skeleton-text" style="width:80%;"></div><div class="skeleton skeleton-text" style="width:50%;"></div></div>`
     overlay.classList.add('active')
     shipmentLoading = true
 
     try {
-        // запрашиваем список товаров у которых есть остаток на складе курьера
-        // u это код сотрудника, t это метка времени для обхода кеша
         const u = currentUser ? encodeURIComponent(currentUser.id) : ''
         const res = await fetchWithTimeout(
             `${apiBase}/shipment?u=${u}&t=${Date.now()}`,
@@ -201,18 +124,14 @@ async function openShipmentModal(pointId) {
         )
 
         if (!res.ok) throw new Error('Помилка мережі')
-
         const data = await res.json()
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С')
 
-        // заглушка от 1с, например склад не настроен
         if (isStubResponse(data)) {
             body.innerHTML = emptyStateHtml(data[0].Name, '36px 20px', 'alert')
             return
         }
 
-        // нормализуем поля из 1с в единый формат
-        // qty всегда начинается с нуля, это то что введет курьер
         shipmentItems = data.map(it => ({
             code: String(it.Code || ''),
             name: String(it.Name || ''),
@@ -221,15 +140,12 @@ async function openShipmentModal(pointId) {
             qty: 0
         }))
 
-        // склад пустой, показываем пустое состояние
         if (!shipmentItems.length) {
             body.innerHTML = emptyStateHtml('На складі немає товарів', '36px 20px', 'box')
             return
         }
 
-        // все ок, рисуем список
         renderShipmentBody()
-
     } catch (err) {
         const message = err && err.message ? err.message : String(err)
         body.innerHTML = `<div class="assort-error">Не вдалося завантажити товари: ${escapeHtml(message)}</div>`
@@ -240,14 +156,6 @@ async function openShipmentModal(pointId) {
 
 // ============================================================
 // блок 5. отрисовка тела модалки
-//
-// тело состоит из трех частей.
-// сверху поиск по названию и коду.
-// посередине счетчик позиций и список строк.
-// внизу заглушка если поиск ничего не нашел.
-//
-// после отрисовки навешиваем обработчики через делегирование.
-// клик по кнопкам плюс и минус, ручной ввод и уход из поля.
 // ============================================================
 
 function renderShipmentBody() {
@@ -256,27 +164,19 @@ function renderShipmentBody() {
 
     body.innerHTML = `
         <div class="assort-top">
-            <div class="assort-search-wrap">
-                <input type="search" class="assort-search" id="shipmentSearch"
-                    placeholder="Пошук товару за назвою або кодом"
-                    autocomplete="off" value="${escapeHtml(shipmentSearchQuery)}">
+            <div class="assort-search-wrap" style="display: flex; gap: 8px;">
+                <input type="search" class="assort-search" id="shipmentSearch" placeholder="Пошук товару..." autocomplete="off" value="${escapeHtml(shipmentSearchQuery)}" style="flex: 1;">
+                <button type="button" class="dg-scan-btn" id="shipmentScanBtn" aria-label="Сканувати">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="7" y2="12.01"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="17" y1="12" x2="17" y2="12.01"/></svg>
+                </button>
             </div>
         </div>
-
-        <div class="assort-panel">
-            <div class="assort-pills" style="margin-top:0;">
-                <span class="assort-pill" id="shipmentCounter">${shipmentItems.length} поз.</span>
-            </div>
-            <div id="shipmentGrid" class="assort-grid" style="margin-top:14px;">
-                ${renderShipmentRows()}
-            </div>
-            <div id="shipmentNoMatch" class="empty-state" style="display:none; margin-top:14px;">
-                Нічого не знайдено
-            </div>
+        <div id="shipmentGrid" class="assort-grid" style="margin-top:14px;">
+            ${renderShipmentRows()}
         </div>
+        <div id="shipmentNoMatch" class="empty-state" style="display:none; margin-top:14px;">Нічого не знайдено</div>
     `
 
-    // поиск по названию и коду
     const searchInput = document.getElementById('shipmentSearch')
     if (searchInput) {
         searchInput.addEventListener('input', () => {
@@ -285,142 +185,96 @@ function renderShipmentBody() {
         })
     }
 
+    const scanBtn = document.getElementById('shipmentScanBtn')
+    if (scanBtn) {
+        scanBtn.addEventListener('click', () => {
+            if (typeof openBarcodeScanner === 'function') openBarcodeScanner();
+        })
+    }
+
     const grid = document.getElementById('shipmentGrid')
 
-    // клик по кнопкам минус и плюс
-    // количество зажимается в диапазон от нуля до складского остатка
     grid.addEventListener('click', e => {
         const btn = e.target.closest('.qty-btn')
         if (!btn) return
-
         const row = btn.closest('[data-shipment-row]')
         if (!row) return
-
         const idx = Number(row.dataset.idx)
         if (!shipmentItems[idx]) return
-
         const step = Number(btn.dataset.step) || 0
         const maxQ = shipmentItems[idx].maxQty
-
-        // считаем новое значение и зажимаем в диапазон
         let next = shipmentItems[idx].qty + step
         if (next < 0) next = 0
         if (next > maxQ) next = maxQ
-
         shipmentItems[idx].qty = next
-
-        // синхронизируем инпут в этой же строке
         const inp = row.querySelector('.qty-input')
         if (inp) inp.value = next
-
         updateShipmentRow(row, idx)
         updateShipmentSummary()
     })
 
-    // ручной ввод количества с клавиатуры
     grid.addEventListener('input', e => {
         if (!e.target.classList.contains('qty-input')) return
-
         const row = e.target.closest('[data-shipment-row]')
         if (!row) return
-
         const idx = Number(row.dataset.idx)
         if (!shipmentItems[idx]) return
-
-        // оставляем только цифры максимум шесть знаков
         e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6)
-
         let val = Number(e.target.value) || 0
         const maxQ = shipmentItems[idx].maxQty
         if (val > maxQ) val = maxQ
-
         shipmentItems[idx].qty = val
-
         updateShipmentRow(row, idx)
         updateShipmentSummary()
     })
 
-    // при уходе из поля возвращаем нормальное значение
-    // если пользователь ввел мусор он заменится на актуальное число
     grid.addEventListener('focusout', e => {
         if (!e.target.classList.contains('qty-input')) return
-
         const row = e.target.closest('[data-shipment-row]')
         if (!row) return
-
         const idx = Number(row.dataset.idx)
-        if (!shipmentItems[idx]) return
-
-        e.target.value = shipmentItems[idx].qty
+        if (shipmentItems[idx]) e.target.value = shipmentItems[idx].qty
     })
 
-    // первичная отрисовка сумм и подсветки по каждой строке
     document.querySelectorAll('#shipmentGrid [data-shipment-row]').forEach(row => {
         updateShipmentRow(row, Number(row.dataset.idx))
     })
 
-    // применяем текущий поиск и считаем итог
     applyShipmentSearch()
     updateShipmentSummary()
 }
 
 // ============================================================
 // блок 6. html для списка строк
-//
-// каждая строка это товар на складе.
-// показываем название, цену, складской остаток
-// и поле для ввода количества к отгрузке.
 // ============================================================
 
 function renderShipmentRows() {
-    return shipmentItems.map((it, i) => `
-        <div class="meter-input-group assort-row" data-shipment-row data-idx="${i}">
-            <div class="assort-row-head">
-                <strong class="assort-tile-name">${escapeHtml(it.name) || '—'}</strong>
-                <span class="assort-row-price">Ціна: <strong>${fmt(it.price)} ₴</strong></span>
-            </div>
-            <div class="assort-row-fields">
-                <div>
-                    <label>На складі</label>
-                    <div class="assort-field-static">${fmt(it.maxQty)}</div>
-                </div>
-                <div>
-                    <label>Відвантажити</label>
-                    ${qtyControlHtml({ value: 0, aria: 'Кількість' })}
-                </div>
-                <div>
-                    <label>Сума</label>
-                    <div class="assort-row-total">0 ₴</div>
-                </div>
-            </div>
-        </div>
-    `).join('')
+    return shipmentItems.map((it, i) => {
+        return renderProductRow({
+            idx: i, code: it.code, name: it.name, price: it.price, showHeadPrice: false,
+            dataAttr: 'data-shipment-row', fieldsClass: 'shipment-row-fields',
+            col1: { label: 'На складі', value: fmt(it.maxQty), isStatic: true, isLarge: true },
+            col2: { label: 'Ціна', value: `${fmt(it.price)} ₴`, isStatic: true },
+            col3: { label: 'Відвантажити', isInput: true, inputValue: 0 },
+            col4: { label: 'Сума', value: '0 ₴', isTotal: true }
+        });
+    }).join('')
 }
 
 // ============================================================
 // блок 7. обновление одной строки
-//
-// считает сумму по строке как qty умножить на цену.
-// подсвечивает строку если количество больше нуля.
 // ============================================================
 
 function updateShipmentRow(row, idx) {
     const it = shipmentItems[idx]
     if (!it) return
-
-    // сумма это qty умножить на цену
     const totalEl = row.querySelector('.assort-row-total')
     if (totalEl) totalEl.textContent = `${fmt(it.qty * it.price)} ₴`
-
-    // визуальная подсветка выбранных позиций
     row.classList.toggle('picked', it.qty > 0)
 }
 
 // ============================================================
 // блок 8. итоги в подвале
-//
-// считает сколько позиций выбрано и на какую сумму.
-// кнопка отправки активна только если выбрана хоть одна позиция.
 // ============================================================
 
 function updateShipmentSummary() {
@@ -428,70 +282,39 @@ function updateShipmentSummary() {
     const btn = document.getElementById('shipmentSendBtn')
     if (!summary || !btn) return
 
-    let count = 0
-    let sum = 0
+    let count = 0, sum = 0
+    shipmentItems.forEach(it => { if (it.qty > 0) { count++; sum += it.qty * it.price; } })
 
-    shipmentItems.forEach(it => {
-        if (it.qty > 0) {
-            count++
-            sum += it.qty * it.price
-        }
-    })
-
-    // ничего не выбрано, подсказываем и блокируем кнопку
     if (!count) {
-        summary.textContent = 'Вкажіть кількість товарів для відвантаження'
+        summary.textContent = 'Вкажіть кількість товарів'
         btn.disabled = true
         return
     }
-
-    // есть позиции, показываем итог и включаем кнопку
     summary.innerHTML = `Відвантажуємо: <b>${count} поз.</b> на <b>${fmt(sum)} ₴</b>`
     btn.disabled = shipmentSending
 }
 
 // ============================================================
 // блок 9. фильтрация списка по поиску
-//
-// ищем одновременно по названию и по коду.
-// строки которые не подходят просто прячем.
-// если ничего не подошло показываем заглушку.
 // ============================================================
 
 function applyShipmentSearch() {
     const q = shipmentSearchQuery
     let shown = 0
-
     document.querySelectorAll('#shipmentGrid [data-shipment-row]').forEach(row => {
         const idx = Number(row.dataset.idx)
         const it = shipmentItems[idx]
         if (!it) return
-
-        // собираем строку для поиска из названия и кода
         const hay = (it.name + ' ' + it.code).toLowerCase()
         const ok = !q || hay.includes(q)
-
         row.style.display = ok ? '' : 'none'
         if (ok) shown++
     })
-
-    // если ничего не нашли показываем заглушку
-    const noMatch = document.getElementById('shipmentNoMatch')
-    if (noMatch) noMatch.style.display = shown ? 'none' : 'block'
+    document.getElementById('shipmentNoMatch').style.display = shown ? 'none' : 'block'
 }
 
 // ============================================================
 // блок 10. отправка формы в 1с
-//
-// порядок такой
-// 1. проверяем флаг отправки и наличие точки
-// 2. собираем только позиции с количеством больше нуля
-// 3. отсекаем отправку без сети
-// 4. собираем payload с request_id
-// 5. отправляем post на /shipment
-// 6. проверяем поле conduct_error в ответе
-//
-// request_id защищает от дублей при обрыве связи.
 // ============================================================
 
 async function submitShipment() {
@@ -504,15 +327,8 @@ async function submitShipment() {
         if (it.qty > 0) items.push({ code: it.code, name: it.name, price: it.price, qty: it.qty });
     });
 
-    if (!items.length) {
-        showToast('Додайте хоча б одну позицію', true);
-        return;
-    }
-
-    if (!navigator.onLine) {
-        showToast('Немає мережі! Відвантаження можна відправити лише онлайн.', true);
-        return;
-    }
+    if (!items.length) return showToast('Додайте хоча б одну позицію', true);
+    if (!navigator.onLine) return showToast('Немає мережі! Відвантаження лише онлайн.', true);
 
     const payload = {
         point_id: pointId,
@@ -528,12 +344,12 @@ async function submitShipment() {
 
     await submitDocument({
         endpoint: 'shipment',
-        payload,
-        btn,
-        closeBtn,
+        payload, btn, closeBtn,
         successText: 'Відвантаження створено в 1С',
         errorPrefix: 'Не вдалося відвантажити',
         onSuccess: () => {
+            // сначала флаг, потом close
+            shipmentSending = false;
             shipmentItems = [];
             shipmentPointId = null;
             closeShipmentModal();
@@ -542,4 +358,42 @@ async function submitShipment() {
 
     shipmentSending = false;
     if (shipmentPointId) updateShipmentSummary();
+}
+
+async function searchShipmentByBarcode(barcode) {
+    const searchInput = document.getElementById('shipmentSearch');
+    if (!searchInput) return;
+
+    searchInput.value = barcode;
+    searchInput.disabled = true;
+
+    try {
+        const u = currentUser ? encodeURIComponent(currentUser.id) : '';
+        const res = await fetchWithTimeout(
+            `${apiBase}/goods?u=${u}&barcode=${encodeURIComponent(barcode)}&t=${Date.now()}`,
+            { method: 'GET', cache: 'no-store' },
+            APP_CONFIG.loadTimeoutMs
+        );
+
+        if (!res.ok) throw new Error('Помилка мережі');
+        const data = await res.json();
+        const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+
+        if (items.length === 0) {
+            showToast('Товар не знайдено', true);
+            searchInput.value = '';
+            return;
+        }
+
+        const foundName = items[0].name;
+        searchInput.value = foundName;
+        shipmentSearchQuery = foundName.toLowerCase();
+        applyShipmentSearch();
+    } catch (err) {
+        showToast('Помилка пошуку', true);
+        searchInput.value = '';
+    } finally {
+        searchInput.disabled = false;
+        searchInput.focus();
+    }
 }

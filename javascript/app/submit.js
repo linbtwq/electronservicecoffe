@@ -25,7 +25,10 @@ async function submitDocument({
     onSuccess
 }) {
     // защита от повторных кликов
-    if (btn && btn.disabled) return;
+    if (btn && btn.disabled) {
+        if (typeof showToast === 'function') showToast('Зачекайте, триває відправка...');
+        return;
+    }
 
     // включаем спиннер
     if (btn) setBtnLoading(btn, loadingText);
@@ -61,18 +64,14 @@ async function submitDocument({
     } catch (err) {
         const msg = err && err.message ? err.message : String(err);
         const isNetwork = msg.includes('Failed to fetch') || msg.toLowerCase().includes('timeout');
-        
-        const displayMsg = isNetwork 
+
+        const displayMsg = isNetwork
             ? '1С не відповідає. Перевірте інтернет і спробуйте знову.'
             : `${errorPrefix}: ${msg}`;
-            
+
         if (typeof showToast === 'function') showToast(displayMsg, true);
 
     } finally {
-        // снимаем спиннер в любом случае
-        if (btn) resetBtn(btn, btn.dataset.originalText || 'OK');
-        if (closeBtn) closeBtn.disabled = false;
-
         if (success) {
             if (conductError) {
                 console.error('[1С] Документ не проведено:', conductError);
@@ -90,5 +89,9 @@ async function submitDocument({
             // обновляем данные с сервера
             if (typeof loadData === 'function') loadData({ silent: true });
         }
+
+        // снимаем спиннер и разблокируем крестик в самом конце, когда окно уже закрылось
+        if (btn) resetBtn(btn, btn.dataset.originalText || 'OK');
+        if (closeBtn) closeBtn.disabled = false;
     }
 }

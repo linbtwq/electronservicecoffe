@@ -14,8 +14,17 @@
 // если сети нет, показываем сохраненный ассортимент из indexedDB.
 // заказывать в офлайне нельзя, кнопка отправки появится только онлайн.
 //
+// про работу с состоянием
+// все мутации заказа идут через appStore:
+//   appStore.setQty        обновить количество одной позиции
+//   appStore.setOrder      обновить набор полей
+//   appStore.resetOrder    сбросить заказ
+// все чтения идут через appStore.getOrder() в начале функции.
+// напрямую order.qty = ... не пишем.
+//
 // зависимости
 // - globalData из core/state.js дает точки
+// - appStore из core/store.js дает состояние заказа
 // - fetchWithTimeout, newRequestId, showToast, escapeHtml из core/api.js, core/api.js, ui/toast.js, core/utils.js
 // - setBtnLoading и resetBtn из features/meter.js
 // - isStubResponse и emptyStateHtml из ui/icons.js
@@ -26,44 +35,16 @@
 // index.html подключает assortments.js после app-модулей
 // ============================================================
 
-// флаги и объект состояния текущего заказа
+// флаги текущего заказа
 let assortLoading = false;
 let orderSending = false;
 
-// текущий заказ пользователя
-// pointId это точка
-// qty это словарь код на количество
-// items это словарь код на название и цену
-// requestId защищает от дублей на сервере
-// canOrder показывает разрешен ли заказ
-const order = {
-    pointId: null,
-    qty: {},
-    items: {},
-    requestId: null,
-    canOrder: false
-};
-
-// сброс заказа в начальное состояние
-function resetOrder() {
-    order.pointId = null;
-    order.qty = {};
-    order.items = {};
-    order.requestId = null;
-    order.canOrder = false;
-}
-
 // ============================================================
 // блок 1. создание окна ассортимента
-//
-// окно создается один раз.
-// тело заполняется отдельно в renderAssortBody.
-// футер по умолчанию скрыт, показывается только если заказ разрешен.
 // ============================================================
 
 function ensureAssortModal() {
     let el = document.getElementById('assortOverlay');
-
     if (el) return el;
 
     el = document.createElement('div');
@@ -80,9 +61,7 @@ function ensureAssortModal() {
                 </div>
                 <button class="modal-close" type="button" aria-label="Закрити">✕</button>
             </div>
-
             <div class="modal-body" id="assortBody"></div>
-
             <div class="modal-footer order-footer">
                 <div class="order-summary" id="orderSummary" style="display:none;"></div>
                 <button class="action-btn btn-success" type="button" id="orderSendBtn" style="display:none;" disabled>Замовити</button>
@@ -106,14 +85,9 @@ function ensureAssortModal() {
 
 // ============================================================
 // блок 2. загрузка ассортимента
-//
-// сначала пробуем сеть.
-// если сети нет достаем сохраненный ассортимент из indexedDB.
-// если и там пусто бросаем ошибку.
 // ============================================================
 
 async function loadPointAssortment(pointId) {
-    // ключ под которым кешируется ассортимент точки
     const key = `assortment_${pointId}`;
 
     try {
@@ -122,65 +96,51 @@ async function loadPointAssortment(pointId) {
             { method: 'GET', cache: 'no-store' },
             APP_CONFIG.loadTimeoutMs
         );
-
         if (!res.ok) throw new Error('Помилка мережі');
-
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Невірна відповідь 1С');
-
-        // кладем в кеш на будущее
         try { await localDB.save(key, data); } catch (e) {}
-
         return { data, offline: false };
     } catch (err) {
-        // сеть не ответила, пробуем кеш
         try {
             const cached = await localDB.load(key);
-            if (Array.isArray(cached)) {
-                return { data: cached, offline: true };
-            }
+            if (Array.isArray(cached)) return { data: cached, offline: true };
         } catch (e) {}
-
         throw err;
     }
 }
 
 // ============================================================
 // блок 3. расчет итогов заказа
-//
-// считает количество позиций и общую сумму.
-// используется в подвале окна и в окне подтверждения.
 // ============================================================
 
 function orderTotals() {
+    const order = appStore.getOrder();
     let count = 0;
     let sum = 0;
 
     for (const code in order.qty) {
         const q = order.qty[code];
         if (!q) continue;
-        const price = (order.items[code] && Number(order.items[code].price)) || 0;
+        const item = order.items[code];
+        if (!item) continue;
+        const price = Number(item.price) || 0;
         count++;
         sum += q * price;
     }
-
     return { count, sum };
 }
 
 // ============================================================
 // блок 4. обновление подвала окна
-//
-// подвал показывается только если заказ разрешен.
-// если позиции не выбраны, кнопка отправки заблокирована.
 // ============================================================
 
 function updateOrderBar() {
+    const order = appStore.getOrder();
     const summary = document.getElementById('orderSummary');
     const btn = document.getElementById('orderSendBtn');
-
     if (!summary || !btn) return;
 
-    // в офлайне заказывать нельзя, подвал скрыт
     if (!order.canOrder) {
         summary.style.display = 'none';
         btn.style.display = 'none';
@@ -188,7 +148,6 @@ function updateOrderBar() {
     }
 
     const { count, sum } = orderTotals();
-
     summary.style.display = 'block';
     btn.style.display = '';
 
@@ -202,56 +161,33 @@ function updateOrderBar() {
 // ============================================================
 // блок 5. установка количества по позиции
 //
-// код это код товара.
-// значение обрезается до диапазона от нуля до 9999.
-// при нуле запись удаляется из словаря заказа.
-//
-// syncInput нужен чтобы отличить клик по кнопке от ручного ввода.
-// при клике инпут нужно обновить, при вводе нет.
+// appStore.setQty сам сбрасывает requestId,
+// потому что изменение количества делает текущий ключ запроса неактуальным
 // ============================================================
 
 function setQty(code, value, tile, syncInput) {
     const q = Math.max(0, Math.min(9999, Math.floor(Number(value) || 0)));
 
-    if (q) {
-        order.qty[code] = q;
-    } else {
-        delete order.qty[code];
-    }
+    appStore.setQty(code, q);
 
-    // сбрасываем requestId потому что состав заказа изменился
-    order.requestId = null;
     tile.classList.toggle('picked', q > 0);
 
-    // обновляем инпут если это клик по кнопке
     if (syncInput) {
         const inp = tile.querySelector('.qty-input');
         if (inp) inp.value = q;
     }
 
-    // пересчитываем сумму по строке
     const totalEl = tile.querySelector('.assort-row-total');
-    if (totalEl) {
-        const price = Number(tile.dataset.price) || 0;
-        totalEl.textContent = `${fmt(q * price)} ₴`;
-    }
-
+    if (totalEl) totalEl.textContent = `${fmt(q * (Number(tile.dataset.price) || 0))} ₴`;
     updateOrderBar();
 }
 
 // ============================================================
 // блок 6. отправка заказа в 1с
-//
-// порядок такой
-// 1. проверяем флаги и наличие позиций
-// 2. отсекаем отправку без сети
-// 3. собираем payload с request_id
-// 4. блокируем форму и показываем загрузку
-// 5. отправляем post на /orders
-// 6. проверяем поле conduct_error в ответе
 // ============================================================
 
 async function submitOrder() {
+    const order = appStore.getOrder();
     if (orderSending || !order.canOrder) return;
     const { count, sum } = orderTotals();
     if (!count) return;
@@ -261,16 +197,31 @@ async function submitOrder() {
         return;
     }
 
-    const pointId = order.pointId;
-    const items = Object.keys(order.qty).map(code => ({
-        code, name: order.items[code].name, qty: order.qty[code], price: order.items[code].price
-    }));
+    const items = Object.entries(order.qty)
+        .filter(([code]) => order.items[code])
+        .map(([code, qty]) => ({
+            code,
+            name: order.items[code].name,
+            qty,
+            price: order.items[code].price
+        }));
 
-    order.requestId = order.requestId || newRequestId();
+    if (!items.length) {
+        showToast('Немає валідних позицій', true);
+        return;
+    }
+
+    // ключ защиты от дублей, генерируется один раз на попытку
+    let requestId = order.requestId;
+    if (!requestId) {
+        requestId = newRequestId();
+        appStore.setOrder({ requestId });
+    }
+
     const payload = {
-        point_id: pointId,
+        point_id: order.pointId,
         technician_id: currentUser ? currentUser.id : '',
-        request_id: order.requestId,
+        request_id: requestId,
         total: sum,
         items
     };
@@ -289,227 +240,106 @@ async function submitOrder() {
         successText: `Замовлення відправлено: ${count} поз. на ${fmt(sum)} ₴`,
         errorPrefix: 'Не вдалося відправити замовлення',
         onSuccess: () => {
-            resetOrder();
+            // сначала флаг, потом close (чтобы окно закрылось)
+            orderSending = false;
             document.getElementById('orderConfirmOverlay')?.classList.remove('active');
             closeAssortModal();
         }
     });
 
     orderSending = false;
-    if (order.canOrder) updateOrderBar(); // Если была ошибка, форма осталась открытой
+    if (appStore.getOrder().canOrder) updateOrderBar();
 }
 
 // ============================================================
 // блок 7. отрисовка тела модалки
-//
-// первое это пилюля с количеством позиций и диапазоном цен.
-// второе это информационная плашка если офлайн.
-// третье это список строк с ценами и контролом количества.
-//
-// после отрисовки вешаем поиск и обработчики на строки.
 // ============================================================
 
 function renderAssortBody(data, offline) {
     const body = document.getElementById('assortBody');
+    appStore.setOrder({ canOrder: false });
 
-    // по умолчанию заказ запрещен
-    order.canOrder = false;
-
-    // заглушка от 1с
     if (isStubResponse(data)) {
         body.innerHTML = emptyStateHtml(data[0].Name);
         updateOrderBar();
         return;
     }
-
     if (!data.length) {
         body.innerHTML = emptyStateHtml('Асортимент порожній');
         updateOrderBar();
         return;
     }
 
-    // заказ разрешен только онлайн
-    order.canOrder = !offline;
-    order.items = {};
-
-    // сохраняем справочник товаров в состоянии заказа
+    const newItems = {};
     data.forEach(it => {
-        const code = String(it.Code);
-        order.items[code] = {
-            name: String(it.Name || ''),
-            price: Number(it.price) || 0
-        };
+        newItems[String(it.Code)] = { name: String(it.Name || ''), price: Number(it.price) || 0 };
     });
+    appStore.setOrder({ items: newItems, canOrder: !offline });
 
-    // считаем диапазон цен для пилюли
+    const order = appStore.getOrder();
+
     const prices = data.map(i => Number(i.price) || 0);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-
-    const priceText = min === max
-        ? `${fmt(min)} ₴`
-        : `${fmt(min)}–${fmt(max)} ₴`;
-
-    // поиск показываем только если позиций много
-    const showSearch = data.length > 8;
+    const priceText = Math.min(...prices) === Math.max(...prices)
+        ? `${fmt(prices[0])} ₴` : `${fmt(Math.min(...prices))}–${fmt(Math.max(...prices))} ₴`;
 
     body.innerHTML = `
-        ${
-            showSearch
-                ? `
-                    <div class="assort-top">
-                        <div class="assort-search-wrap">
-                            <input
-                                type="search"
-                                class="assort-search"
-                                id="assortSearch"
-                                placeholder="Пошук напою"
-                                autocomplete="off"
-                            >
-                        </div>
-                    </div>
-                `
-                : ''
-        }
-
-        ${
-            offline
-                ? `
-                    <div class="assort-offline">
-                        Офлайн. Показані збережені дані.
-                        Замовлення можна відправити лише онлайн.
-                    </div>
-                `
-                : ''
-        }
-
+        ${data.length > 8 ? `<div class="assort-top"><div class="assort-search-wrap"><input type="search" class="assort-search" id="assortSearch" placeholder="Пошук напою" autocomplete="off"></div></div>` : ''}
+        ${offline ? `<div class="assort-offline">Офлайн. Показані збережені дані. Замовлення можна відправити лише онлайн.</div>` : ''}
         <div class="assort-panel">
             <div class="assort-pills" style="margin-top:0;">
                 <span class="assort-pill">${data.length} поз.</span>
                 <span class="assort-pill price">${priceText}</span>
             </div>
-
             <div id="assortGrid" class="assort-grid" style="margin-top:14px;">
-                ${data.map((it) => {
-                    const minStock = Number(it.minStock) || 0;
-                    const price = Number(it.price) || 0;
-                    const code = escapeHtml(String(it.Code));
-                    const name = String(it.Name || '');
-
-                    return `
-                        <div
-                            class="meter-input-group assort-row"
-                            data-code="${code}"
-                            data-price="${price}"
-                        >
-                            <div class="assort-row-head">
-                                <strong class="assort-tile-name">
-                                    ${escapeHtml(name) || '—'}
-                                </strong>
-                                <span class="assort-row-price">
-                                    Ціна: <strong>${fmt(price)} ₴</strong>
-                                </span>
-                            </div>
-
-                            <div class="assort-row-fields">
-                                <div>
-                                    <label>Мін. запас</label>
-                                    <div class="assort-field-static">
-                                        ${minStock > 0 ? fmt(minStock) : '—'}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label>Кількість</label>
-                                    ${
-                                        order.canOrder
-                                        ? qtyControlHtml({ value: 0, aria: 'Кількість' })
-                                        : `<div class="assort-field-static">—</div>`
-                                    }
-                                </div>
-                                <div>
-                                    <label>Сума</label>
-                                    <div class="assort-row-total">0 ₴</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
+                ${data.map((it, i) => renderProductRow({
+                    idx: i, code: it.Code, name: it.Name, price: it.price, showHeadPrice: true,
+                    col1: { label: 'Мін. запас', value: it.minStock > 0 ? fmt(it.minStock) : '—', isStatic: true },
+                    col2: order.canOrder ? { label: 'Кількість', isInput: true, inputValue: 0 } : { label: 'Кількість', value: '—', isStatic: true },
+                    col3: { label: 'Сума', value: '0 ₴', isTotal: true }
+                })).join('')}
             </div>
-
-            <div id="assortNoMatch" class="empty-state" style="display:none; margin-top:14px;">
-                Нічого не знайдено
-            </div>
+            <div id="assortNoMatch" class="empty-state" style="display:none; margin-top:14px;">Нічого не знайдено</div>
         </div>
     `;
 
-    // фильтрация позиций по названию
     const input = document.getElementById('assortSearch');
     if (input) {
         input.addEventListener('input', () => {
             const q = input.value.trim().toLowerCase();
             let shown = 0;
-
             document.querySelectorAll('#assortGrid .assort-row').forEach(tile => {
-                const nameEl = tile.querySelector('.assort-tile-name');
-                const name = nameEl ? nameEl.textContent.toLowerCase() : '';
-                const ok = !q || name.includes(q);
+                const ok = !q || (tile.querySelector('.assort-tile-name')?.textContent.toLowerCase().includes(q));
                 tile.style.display = ok ? '' : 'none';
                 if (ok) shown++;
             });
-
-            const noMatch = document.getElementById('assortNoMatch');
-            if (noMatch) {
-                noMatch.style.display = shown ? 'none' : 'block';
-            }
+            document.getElementById('assortNoMatch').style.display = shown ? 'none' : 'block';
         });
     }
 
     const grid = document.getElementById('assortGrid');
-    if (!grid) {
-        updateOrderBar();
-        return;
-    }
+    if (!grid) return updateOrderBar();
 
-    // клик по кнопкам плюс и минус
     grid.addEventListener('click', e => {
         const btn = e.target.closest('.qty-btn');
         if (!btn) return;
-
         const tile = btn.closest('.assort-row');
         if (!tile) return;
-
-        const code = tile.dataset.code;
-
-        setQty(
-            code,
-            (order.qty[code] || 0) + Number(btn.dataset.step),
-            tile,
-            true
-        );
+        const current = appStore.getOrder().qty[tile.dataset.code] || 0;
+        setQty(tile.dataset.code, current + Number(btn.dataset.step), tile, true);
     });
 
-    // ручной ввод количества
     grid.addEventListener('input', e => {
         if (!e.target.classList.contains('qty-input')) return;
-
         const tile = e.target.closest('.assort-row');
         if (!tile) return;
-
-        // только цифры, не больше четырех знаков
         e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
-
         setQty(tile.dataset.code, e.target.value, tile, false);
     });
 
-    // при уходе из поля нормализуем значение
     grid.addEventListener('focusout', e => {
         if (!e.target.classList.contains('qty-input')) return;
-
         const tile = e.target.closest('.assort-row');
-        if (!tile) return;
-
-        e.target.value = order.qty[tile.dataset.code] || 0;
+        if (tile) e.target.value = appStore.getOrder().qty[tile.dataset.code] || 0;
     });
 
     updateOrderBar();
@@ -520,68 +350,37 @@ function renderAssortBody(data, offline) {
 // ============================================================
 
 function assortSkeleton() {
-    return `
-        <div class="assort-loading">
-            <div class="skeleton skeleton-title" style="width:50%;"></div>
-            <div class="skeleton skeleton-text"></div>
-            <div class="skeleton skeleton-title" style="width:40%; margin-top:10px;"></div>
-            <div class="skeleton skeleton-text" style="width:65%;"></div>
-        </div>
-    `;
+    return `<div class="assort-loading"><div class="skeleton skeleton-title" style="width:50%;"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-title" style="width:40%; margin-top:10px;"></div><div class="skeleton skeleton-text" style="width:65%;"></div></div>`;
 }
 
 // ============================================================
 // блок 9. открытие окна ассортимента
-//
-// порядок такой
-// 1. ищем точку в общем списке
-// 2. сбрасываем состояние заказа
-// 3. заполняем шапку и показываем скелетон
-// 4. показываем окно
-// 5. грузим ассортимент и рендерим тело
 // ============================================================
 
 async function openAssortModal(pointId) {
     const point = globalData.find(i => String(i.id) === String(pointId));
-
     if (!point || assortLoading) return;
 
     rememberFocus();
-
     const overlay = ensureAssortModal();
 
-    // сбрасываем состояние прошлого заказа
-    resetOrder();
-    order.pointId = point.id;
+    appStore.resetOrder();
+    appStore.setOrder({ pointId: point.id });
 
     updateOrderBar();
 
-    // показываем название точки и установленную машину
     const subParts = [point.point_name || 'Точка', `код ${point.id}`];
-    if (point.coffee_machine) {
-        subParts.push(point.coffee_machine + (point.coffee_machine_code ? ` (${point.coffee_machine_code})` : ''));
-    }
+    if (point.coffee_machine) subParts.push(point.coffee_machine + (point.coffee_machine_code ? ` (${point.coffee_machine_code})` : ''));
     document.getElementById('assortSub').textContent = subParts.join(' · ');
-
     document.getElementById('assortBody').innerHTML = assortSkeleton();
-
     overlay.classList.add('active');
 
     assortLoading = true;
-
     try {
         const { data, offline } = await loadPointAssortment(point.id);
         renderAssortBody(data, offline);
     } catch (err) {
-        const message = err && err.message ? err.message : String(err);
-
-        document.getElementById('assortBody').innerHTML = `
-            <div class="assort-error">
-                Не вдалося завантажити асортимент:
-                ${escapeHtml(message)}
-            </div>
-        `;
-
+        document.getElementById('assortBody').innerHTML = `<div class="assort-error">Не вдалося завантажити: ${escapeHtml(err.message || String(err))}</div>`;
         updateOrderBar();
     } finally {
         assortLoading = false;
@@ -590,27 +389,17 @@ async function openAssortModal(pointId) {
 
 // ============================================================
 // блок 10. закрытие окна
-//
-// во время отправки окно не закрывается.
-// после закрытия сбрасываем состояние заказа.
 // ============================================================
 
 function closeAssortModal() {
     if (orderSending) return;
-
     document.getElementById('assortOverlay')?.classList.remove('active');
-    resetOrder();
-
-    if (!getTopModal()) {
-        restoreFocus();
-    }
+    appStore.resetOrder();
+    if (!getTopModal()) restoreFocus();
 }
 
 // ============================================================
 // блок 11. окно подтверждения заказа
-//
-// показываем количество позиций и общую сумму.
-// кнопка назад возвращает к списку, кнопка отправить отправляет.
 // ============================================================
 
 function ensureOrderConfirmModal() {
@@ -624,23 +413,12 @@ function ensureOrderConfirmModal() {
 
     el.innerHTML = `
         <div class="modal-box confirm-box">
-            <div class="modal-header">
-                <h3>Перевірка замовлення</h3>
-                <button class="modal-close" type="button" aria-label="Закрити">✕</button>
-            </div>
+            <div class="modal-header"><h3>Перевірка замовлення</h3><button class="modal-close" type="button">✕</button></div>
             <div class="modal-body">
-                <p style="text-align: center; margin-bottom: 15px; color: #64748b; font-size: 0.95rem;">
-                    Перевірте склад замовлення перед відправкою в 1С
-                </p>
+                <p style="text-align: center; margin-bottom: 15px; color: #64748b;">Перевірте склад перед відправкою</p>
                 <div class="confirm-summary">
-                    <div class="confirm-item">
-                        <span>Всього позицій:</span>
-                        <strong id="orderConfirmCount" style="color: #0f172a; font-size: 1.2rem;">0</strong>
-                    </div>
-                    <div class="confirm-item">
-                        <span>На суму:</span>
-                        <strong id="orderConfirmSum" style="color: #10b981; font-size: 1.2rem;">0 ₴</strong>
-                    </div>
+                    <div class="confirm-item"><span>Всього позицій:</span><strong id="orderConfirmCount" style="color: #0f172a; font-size: 1.2rem;">0</strong></div>
+                    <div class="confirm-item"><span>На суму:</span><strong id="orderConfirmSum" style="color: #10b981; font-size: 1.2rem;">0 ₴</strong></div>
                 </div>
             </div>
             <div class="modal-footer" style="justify-content: space-between;">
@@ -651,34 +429,25 @@ function ensureOrderConfirmModal() {
     `;
 
     document.body.appendChild(el);
-
     el.querySelector('.modal-close').addEventListener('click', closeOrderConfirmModal);
     el.querySelector('#orderConfirmBack').addEventListener('click', closeOrderConfirmModal);
     el.querySelector('#orderConfirmSend').addEventListener('click', submitOrder);
-
-    el.addEventListener('click', (e) => {
-        if (e.target === el) closeOrderConfirmModal();
-    });
-
+    el.addEventListener('click', (e) => { if (e.target === el) closeOrderConfirmModal(); });
     return el;
 }
 
-// показ окна подтверждения с актуальными цифрами
 function showOrderConfirm() {
+    const order = appStore.getOrder();
     if (orderSending || !order.canOrder) return;
-
     const { count, sum } = orderTotals();
     if (!count) return;
 
     const el = ensureOrderConfirmModal();
-
     document.getElementById('orderConfirmCount').textContent = count;
     document.getElementById('orderConfirmSum').textContent = `${fmt(sum)} ₴`;
-
     el.classList.add('active');
 }
 
-// закрытие окна подтверждения
 function closeOrderConfirmModal() {
     if (orderSending) return;
     document.getElementById('orderConfirmOverlay')?.classList.remove('active');

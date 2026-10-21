@@ -106,8 +106,8 @@ function cardHtml(item, idx) {
             Поповнення по цій точці вже внесено${lockTimeText(orderLock)}.
         </div>`
     }
-    if (item.recount_locked === true) {
-        const at = item.recount_locked_at ? ` (${item.recount_locked_at})` : ''
+        if (item.recount_locked === true) {
+        const at = item.recount_locked_at ? ` (${escapeHtml(item.recount_locked_at)})` : ''
         notes += `<div class="lock-note recount">
             Перерахунок по цій точці вже внесено${at}.
         </div>`

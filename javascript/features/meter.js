@@ -41,7 +41,6 @@ function openMeterModal(pointId) {
     const item = globalData.find(i => String(i.id) === String(pointId))
     if (!item) return
 
-    // если точка уже закрыта, не открываем
     if (isMeterBlocked(item)) {
         showToast('По цій точці показники вже зняті. Зміни — через 1С.', true)
         return
@@ -52,7 +51,6 @@ function openMeterModal(pointId) {
     currentPointId = item.id
     currentMeterRequestId = newRequestId()
 
-    // заполняем подзаголовок
     const modalSub = document.getElementById('modalSub')
     if (modalSub) {
         const subParts = [item.point_name || 'Точка', `код ${item.id}`]
@@ -65,13 +63,11 @@ function openMeterModal(pointId) {
     let bodyHtml
 
     if (item.assortment && item.assortment.length > 0) {
-        // считаем ценовой диапазон
         const prices = item.assortment.map(d => Number(d.price) || 0)
         const min = Math.min(...prices)
         const max = Math.max(...prices)
         const priceText = min === max ? `${fmt(min)} ₴` : `${fmt(min)}–${fmt(max)} ₴`
 
-        // общий счетчик показываем только если включен в настройках оборудования
         const sumLast = item.assortment.reduce((s, d) => s + (Number(d.last_meter) || 0), 0)
         const serverTotal = item.total_counter == null ? NaN : Number(item.total_counter)
         const totalBase = Number.isFinite(serverTotal) ? serverTotal : sumLast
@@ -83,41 +79,27 @@ function openMeterModal(pointId) {
                </span>`
             : ''
 
-        // строка на каждый напиток
-        const rowsHtml = item.assortment.map(drink => {
+        const rowsHtml = item.assortment.map((drink, i) => {
             const price = Number(drink.price) || 0
             const lastMeter = Number(drink.last_meter) || 0
 
-            return `
-                <div class="meter-input-group assort-row" data-drink-row data-code="${escapeHtml(drink.code || '')}">
-                    <div class="assort-row-head">
-                        <strong class="assort-tile-name drink-name">${escapeHtml(drink.name) || 'Без назви'}</strong>
-                        <span class="assort-row-price">Ціна: <strong>${fmt(price)} ₴</strong></span>
-                    </div>
-                    <div class="assort-row-fields">
-                        <div>
-                            <label>Було</label>
-                            <div class="assort-field-static">${fmt(lastMeter)}</div>
-                        </div>
-                        <div>
-                            <label>Новий</label>
-                            <div class="qty">
-                                <button type="button" class="qty-btn" data-step="-1" aria-label="Менше">−</button>
-                                <input type="text" inputmode="numeric" pattern="[0-9]*"
-                                       class="meter-input qty-input"
-                                       value="${lastMeter}"
-                                       data-price="${price}"
-                                       data-last="${lastMeter}">
-                                <button type="button" class="qty-btn" data-step="1" aria-label="Більше">+</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label>Разом</label>
-                            <div class="row-total assort-row-total">0 ₴</div>
-                        </div>
-                    </div>
-                </div>
-            `
+            return renderProductRow({
+                idx: i,
+                code: drink.code,
+                name: drink.name,
+                price: price,
+                showHeadPrice: true,
+                dataAttr: 'data-drink-row',
+                col1: { label: 'Було', value: fmt(lastMeter), isStatic: true },
+                col2: { 
+                    label: 'Новий', 
+                    isInput: true, 
+                    inputValue: lastMeter,
+                    inputClass: 'meter-input',
+                    inputAttrs: `data-price="${price}" data-last="${lastMeter}"`
+                },
+                col3: { label: 'Разом', value: '0 ₴', isTotal: true }
+            })
         }).join('')
 
         bodyHtml = `
@@ -137,12 +119,10 @@ function openMeterModal(pointId) {
     document.getElementById('modalBody').innerHTML = bodyHtml
     document.getElementById('modalOverlay').classList.add('active')
 
-    // кнопка продолжить активна только если есть ассортимент
     const hasAssortment = Array.isArray(item.assortment) && item.assortment.length > 0
     const proceedBtn = document.querySelector('#modalOverlay .modal-footer .action-btn')
     if (proceedBtn) proceedBtn.disabled = !hasAssortment
 
-    // пересчет по всем строкам при первом показе
     document.querySelectorAll('#modalBody [data-drink-row] .meter-input')
         .forEach(inp => calculateRowTotal(inp))
 
@@ -290,139 +270,158 @@ function closeModal() {
 
 
 // ============================================================
-// блок 6. отправка показаний в 1с
-//
-// порядок такой
-// 1. найти точку и проверить что она еще не заблокирована
-// 2. собрать метры из строк формы
-// 3. если сети нет положить в офлайн-очередь
-// 4. отправить post на /meters
-// 5. разобрать ответ, 409 значит точку уже кто-то сдал
-// 6. при успехе заблокировать точку и обновить данные
-//
-// request_id защищает от дублей при обрыве связи
+// блок 6. отправка показаний в 1с (Рефакторинг)
 // ============================================================
 
-async function submitMeters() {
-    const pointId = currentPointId
-    const currentItem = globalData.find(i => String(i.id) === String(pointId))
-
-    // еще раз проверяем что точку не заблокировали пока открыта модалка
-    if (currentItem && isMeterBlocked(currentItem)) {
-        showToast('По цій точці показники вже зняті. Зміни — через 1С.', true)
-        finishSubmission({ logout: false })
-        return
-    }
-
-    const rows = document.querySelectorAll('#modalBody [data-drink-row]')
-    const metersData = []
-    let sessionTotal = 0
+// 1. функция только для чтения HTM
+function extractMeterDataFromDOM() {
+    const rows = document.querySelectorAll('#modalBody [data-drink-row]');
+    const rawData = [];
 
     rows.forEach(row => {
-        const nameEl = row.querySelector('.drink-name')
-        const name = nameEl ? nameEl.textContent.trim() : ''
-        const code = row.dataset.code || ''
-        const meterInput = row.querySelector('.meter-input')
-        if (!meterInput) return
-
-        const price = Number(meterInput.getAttribute('data-price')) || 0
-        const value = Number(meterInput.value) || 0
-        const lastMeter = Number(meterInput.getAttribute('data-last')) || 0
-        const delta = value - lastMeter
+        const nameEl = row.querySelector('.drink-name');
+        const name = nameEl ? nameEl.textContent.trim() : '';
+        const code = row.dataset.code || '';
+        const meterInput = row.querySelector('.meter-input');
+        
+        if (!meterInput) return;
 
         if (code || name) {
-            const itemTotal = delta > 0 ? delta * price : 0
-            sessionTotal += itemTotal
-
-            metersData.push({
-                code, name, price, value,
-                delta: delta > 0 ? delta : 0,
-                total: itemTotal
-            })
+            rawData.push({
+                code,
+                name,
+                price: Number(meterInput.getAttribute('data-price')) || 0,
+                value: Number(meterInput.value) || 0,
+                lastMeter: Number(meterInput.getAttribute('data-last')) || 0
+            });
         }
-    })
+    });
 
-    const payload = {
-        point_id: pointId,
-        technician_id: currentUser ? currentUser.id : '',
-        request_id: currentMeterRequestId || newRequestId(),
-        meters: metersData
+    return rawData;
+}
+
+// 2. функция только для логики
+function buildMeterPayload(pointId, requestId, rawData) {
+    let sessionTotal = 0;
+    const metersData = [];
+
+    rawData.forEach(item => {
+        const delta = item.value - item.lastMeter;
+        const positiveDelta = delta > 0 ? delta : 0;
+        const itemTotal = positiveDelta * item.price;
+        
+        sessionTotal += itemTotal;
+
+        metersData.push({
+            code: item.code,
+            name: item.name,
+            price: item.price,
+            value: item.value,
+            delta: positiveDelta,
+            total: itemTotal
+        });
+    });
+
+    return {
+        payload: {
+            point_id: pointId,
+            technician_id: currentUser ? currentUser.id : '',
+            request_id: requestId,
+            meters: metersData
+        },
+        sessionTotal
+    };
+}
+
+// 3. функция-оркестратор. она управляет процессом.
+async function submitMeters() {
+    const pointId = currentPointId;
+    const currentItem = globalData.find(i => String(i.id) === String(pointId));
+
+    if (currentItem && isMeterBlocked(currentItem)) {
+        showToast('По цій точці показники вже зняті. Зміни — через 1С.', true);
+        finishSubmission({ logout: false });
+        return;
     }
 
-    const confirmBtn = document.querySelector('#confirmOverlay .btn-success')
-    if (!confirmBtn) return
+    // шаг А: Достаем сырые данные из интерфейса
+    const rawMeters = extractMeterDataFromDOM();
+    
+    // шаг Б: Считаем деньги и формируем пакет для отправки
+    const { payload, sessionTotal } = buildMeterPayload(
+        pointId, 
+        currentMeterRequestId || newRequestId(), 
+        rawMeters
+    );
 
-    setBtnLoading(confirmBtn, 'Відправка...')
+    const confirmBtn = document.querySelector('#confirmOverlay .btn-success');
+    if (!confirmBtn) return;
 
-    // офлайн, кладем в очередь
+    setBtnLoading(confirmBtn, 'Відправка...');
+
+    // шаг В: если нет сети  кидаем в очередь
     if (!navigator.onLine) {
-        saveOffline(payload)
-        finishSubmission()
-        refreshResults()
-        resetBtn(confirmBtn, 'Відправити в 1С')
-        return
+        saveOffline(payload);
+        finishSubmission();
+        refreshResults();
+        resetBtn(confirmBtn, 'Відправити в 1С');
+        return;
     }
 
+    // шаг Г: Отправка на сервер
     try {
-        const response = await postJson('meters', payload)
+        const response = await postJson('meters', payload);
 
-        // 409 значит точку уже кто-то сдал
         if (response.status === 409) {
-            lockPoint(pointId)
-            invalidateLockSnapshot()
-            showToast('По цій точці показники вже внесені. Для змін телефонуйте в 1С.', true)
-            finishSubmission()
-            refreshResults()
-            return
+            lockPoint(pointId);
+            invalidateLockSnapshot();
+            showToast('По цій точці показники вже внесені. Для змін телефонуйте в 1С.', true);
+            finishSubmission();
+            refreshResults();
+            return;
         }
 
         if (!response.ok) {
-            const errText = await response.text()
-            throw new Error((errText && errText.slice(0, 200)) || 'Помилка сервера 1С')
+            const errText = await response.text();
+            throw new Error((errText && errText.slice(0, 200)) || 'Помилка сервера 1С');
         }
 
-        let body = null
+        let body = null;
         try { body = await response.json(); } catch (e) {}
 
-        // явная ошибка от 1с
         if (body && body.ok === false) {
-            showToast(body.error || body.debt_error || '1С відхилила документ.', true)
-            return
+            showToast(body.error || body.debt_error || '1С відхилила документ.', true);
+            return;
         }
 
-        lockPoint(pointId)
-        invalidateLockSnapshot()
+        lockPoint(pointId);
+        invalidateLockSnapshot();
 
-        // отдельно показываем что долг не начислился
-        const hasDebtError = body && body.debt_error
-
+        const hasDebtError = body && body.debt_error;
         if (hasDebtError) {
-            console.error('[1С] борг не нарахований:', body.debt_error)
-            showToast('Документ створено, але БОРГ НЕ НАРАХОВАНО: ' + String(body.debt_error).slice(0, 150), true)
+            console.error('[1С] борг не нарахований:', body.debt_error);
+            showToast('Документ створено, але БОРГ НЕ НАРАХОВАНО: ' + String(body.debt_error).slice(0, 150), true);
         } else {
-            showSuccessAnimation()
-            showToast('Документ в 1С успішно створено!')
+            showSuccessAnimation();
+            showToast('Документ в 1С успішно створено!');
         }
 
-        finishSubmission()
+        finishSubmission();
 
-        if (!hasDebtError) refreshAfterSubmit(pointId, sessionTotal)
-        else refreshResults()
+        if (!hasDebtError) refreshAfterSubmit(pointId, sessionTotal);
+        else refreshResults();
 
     } catch (error) {
-        const msg = error && error.message ? error.message : String(error)
-
-        // сетевая ошибка, кладем в очередь
+        const msg = error && error.message ? error.message : String(error);
         if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-            saveOffline(payload)
-            finishSubmission()
-            refreshResults()
+            saveOffline(payload);
+            finishSubmission();
+            refreshResults();
         } else {
-            showToast(`Помилка: ${msg}`, true)
+            showToast(`Помилка: ${msg}`, true);
         }
-
     } finally {
-        resetBtn(confirmBtn, 'Відправити в 1С')
+        resetBtn(confirmBtn, 'Відправити в 1С');
     }
 }
 

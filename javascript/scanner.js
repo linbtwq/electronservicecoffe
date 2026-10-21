@@ -15,7 +15,7 @@
 // ============================================================
 
 let _videoStream = null;
-let _scanAnimationFrame = null;
+let _scanTimerId = null;
 let _barcodeDetector = null;
 
 async function openBarcodeScanner() {
@@ -28,8 +28,11 @@ async function openBarcodeScanner() {
     }
 
     // Создаем оверлей со сканером, если его еще нет
-    // Создаем оверлей со сканером, если его еще нет
     let overlay = document.getElementById('barcodeScannerOverlay');
+    
+    // Защита от двойного клика
+    if (overlay && overlay.classList.contains('active')) return;
+
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'barcodeScannerOverlay';
@@ -68,9 +71,17 @@ async function openBarcodeScanner() {
         await video.play();
 
         // Настраиваем детектор (какие форматы ищем)
-        _barcodeDetector = new BarcodeDetector({
-            formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e']
-        });
+        // Фикс: Запрашиваем поддерживаемые форматы, чтобы избежать ошибок в Safari/iOS
+        const desiredFormats = ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e'];
+        let formats = desiredFormats;
+
+        if (typeof BarcodeDetector.getSupportedFormats === 'function') {
+            const available = await BarcodeDetector.getSupportedFormats();
+            formats = desiredFormats.filter(f => available.includes(f));
+            if (formats.length === 0) formats = available;
+        }
+
+        _barcodeDetector = new BarcodeDetector({ formats });
 
         startScanLoop();
 
@@ -94,17 +105,24 @@ async function startScanLoop() {
             const code = barcodes[0].rawValue;
             if (code) {
                 if (navigator.vibrate) navigator.vibrate(100);
-                
-                // Вставляем код в поиск
+                closeBarcodeScanner();
+
+                // проверяем, открыто ли окно отгрузки
+                const shipmentOverlay = document.getElementById('shipmentOverlay');
+                if (shipmentOverlay && shipmentOverlay.classList.contains('active')) {
+                    if (typeof searchShipmentByBarcode === 'function') {
+                        searchShipmentByBarcode(code);
+                    }
+                    return;
+                }
+
+                // иначе ищем в меню товаров
                 const input = document.getElementById('goodsSearch');
                 if (input) {
                     input.value = code;
                     const clearBtn = document.getElementById('goodsClear');
                     if (clearBtn) clearBtn.hidden = false;
                     
-                    closeBarcodeScanner();
-                    
-                    // ВЫЗЫВАЕМ ПОИСК ПО ШТРИХ-КОДУ
                     if (typeof searchGoodsByBarcode === 'function') {
                         searchGoodsByBarcode(code);
                     }
@@ -113,13 +131,15 @@ async function startScanLoop() {
             }
         }
     } catch (e) {}
-    _scanAnimationFrame = requestAnimationFrame(startScanLoop);
+    
+    // сetTimeout 150мс вместо requestAnimationFrame, чтобы не вешать процессор полифиллом
+    _scanTimerId = setTimeout(startScanLoop, 150);
 }
 
 function closeBarcodeScanner() {
-    if (_scanAnimationFrame) {
-        cancelAnimationFrame(_scanAnimationFrame);
-        _scanAnimationFrame = null;
+    if (_scanTimerId) {
+        clearTimeout(_scanTimerId);
+        _scanTimerId = null;
     }
     
     if (_videoStream) {

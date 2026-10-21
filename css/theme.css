@@ -1028,3 +1028,17 @@ body.dark-theme .note-chip.active { color: #07231c; }
         top: calc(var(--mobile-search-top) + 54px);
     }
 }
+
+/* раскладка для окна отгрузки */
+.shipment-row-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (min-width: 600px) {
+    .shipment-row-fields {
+        grid-template-columns: repeat(4, 1fr);
+        align-items: start;
+    }
+}

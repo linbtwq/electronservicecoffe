@@ -260,29 +260,21 @@ function renderRecountBody() {
             </div>
 
             <div id="recountGrid" class="assort-grid" style="margin-top:14px;">
-                ${recountItems.map((it, i) => {
-                    return `
-                        <div class="meter-input-group assort-row" data-recount-row data-idx="${i}">
-                            <div class="assort-row-head">
-                                <strong class="assort-tile-name">${escapeHtml(it.Name) || '—'}</strong>
-                                <span class="assort-row-price">Ціна: <strong>${fmt(it.price)} ₴</strong></span>
-                            </div>
-                            <div class="assort-row-fields">
-                                <div>
-                                    <label>Облікове</label>
-                                    <div class="assort-field-static">${fmt(it.book)}</div>
-                                </div>
-                                <div>
-                                    <label>Фактичне</label>
-                                    ${qtyControlHtml({ value: it.actual, aria: 'Фактичне' })}
-                                </div>
-                                <div>
-                                    <label>Відхилення</label>
-                                    <div class="recount-deviation zero">0 шт · 0 ₴</div>
-                                </div>
-                            </div>
-                        </div>
-                    `
+                                ${recountItems.map((it, i) => {
+                    // если число дробное (есть остаток от деления на 1), шаг 0.01. Иначе 1.
+                    const step = Number(it.book) % 1 !== 0 ? 0.01 : 1;
+                    
+                    return renderProductRow({
+                        idx: i,
+                        code: it.Code,
+                        name: it.Name,
+                        price: it.price,
+                        showHeadPrice: true,
+                        dataAttr: 'data-recount-row',
+                        col1: { label: 'Облікове', value: fmt(it.book), isStatic: true },
+                        col2: { label: 'Фактичне', isInput: true, inputValue: it.actual, step: step },
+                        col3: { label: 'Відхилення', value: '0 шт · 0 ₴', isStatic: true, className: 'recount-deviation zero' }
+                    });
                 }).join('')}
             </div>
         </div>
@@ -290,9 +282,7 @@ function renderRecountBody() {
 
     const grid = document.getElementById('recountGrid')
 
-    // клик по кнопкам минус и плюс
-    // фактическое не может уйти ниже нуля
-    grid.addEventListener('click', e => {
+        grid.addEventListener('click', e => {
         const btn = e.target.closest('.qty-btn')
         if (!btn) return
 
@@ -303,9 +293,11 @@ function renderRecountBody() {
         if (!recountItems[idx]) return
 
         const step = Number(btn.dataset.step) || 0
-        recountItems[idx].actual = Math.max(0, recountItems[idx].actual + step)
+        
+        // убрали Math.max(0, ...). добавили округление до 3 знаков после запятой.
+        const newValue = recountItems[idx].actual + step;
+        recountItems[idx].actual = Math.round(newValue * 1000) / 1000;
 
-        // синхронизируем инпут в этой же строке
         const inp = row.querySelector('.qty-input')
         if (inp) inp.value = recountItems[idx].actual
 
@@ -313,7 +305,6 @@ function renderRecountBody() {
         updateRecountSummary()
     })
 
-    // ручной ввод количества с клавиатуры
     grid.addEventListener('input', e => {
         if (!e.target.classList.contains('qty-input')) return
 
@@ -323,16 +314,21 @@ function renderRecountBody() {
         const idx = Number(row.dataset.idx)
         if (!recountItems[idx]) return
 
-        // только цифры, не больше шести знаков
-        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6)
-        recountItems[idx].actual = Number(e.target.value) || 0
+        // разрешаем вводить минус и точку (для дробных остатков)
+        let val = e.target.value.replace(/[^\d.-]/g, '');
+        
+        // Оставляем только один минус в самом начале
+        if (val.includes('-')) {
+            val = '-' + val.replace(/-/g, '');
+        }
+        
+        e.target.value = val.slice(0, 7);
+        recountItems[idx].actual = Number(val) || 0;
 
         updateRecountRow(row, idx)
         updateRecountSummary()
     })
 
-    // при уходе из поля возвращаем актуальное значение
-    // если пользователь ввел пустоту или мусор оно заменится на число
     grid.addEventListener('focusout', e => {
         if (!e.target.classList.contains('qty-input')) return
 
@@ -345,7 +341,6 @@ function renderRecountBody() {
         e.target.value = recountItems[idx].actual
     })
 
-    // первичная отрисовка отклонений и подсветки
     document.querySelectorAll('#recountGrid [data-recount-row]').forEach(row => {
         updateRecountRow(row, Number(row.dataset.idx))
     })
@@ -418,19 +413,6 @@ function updateRecountSummary() {
 
 // ============================================================
 // блок 8. отправка перерасчета в 1с
-//
-// порядок такой
-// 1. проверяем флаг отправки и наличие точки
-// 2. считаем суммарное отклонение
-// 3. отсекаем отправку без сети
-// 4. собираем payload со всеми позициями
-// 5. отправляем post на /recount
-// 6. проверяем поле conduct_error в ответе
-//
-// в 1с отправляем все позиции, даже с нулевым отклонением.
-// сервер сам решит что писать в документ.
-//
-// request_id защищает от дублей при обрыве связи.
 // ============================================================
 
 async function submitRecount() {
@@ -471,9 +453,12 @@ async function submitRecount() {
         payload,
         btn,
         closeBtn,
+        loadingText: 'Відправка...',
         successText: 'Перерахунок відправлено в 1С',
         errorPrefix: 'Не вдалося відправити',
         onSuccess: () => {
+            // сначала флаг, потом close
+            recountSending = false;
             recountItems = [];
             recountPointId = null;
             closeRecountModal();
