@@ -8,16 +8,10 @@
 // - инициализировать разметку и обработчики каталога
 // - грузить уровни дерева групп и товаров
 // - искать по названию и коду с отменой устаревших запросов
-// - кешировать результаты поиска
-//
-// зависимости
-// - scanner.js отвечает за сканирование штрих-кодов
+// - искать по штрих-коду (вызывается из scanner.js)
 // ============================================================
 
-// минимальная длина запроса для поиска
 const GOODS_MIN_QUERY = 1;
-
-// состояние каталога
 let goodsRendered = false;
 let goodsCurrentParent = '';
 let goodsSearchSeq = 0;
@@ -162,7 +156,6 @@ function initDrawerGoods() {
     }
 
     if (scanBtn) {
-        // Вызываем функцию из scanner.js
         scanBtn.addEventListener('click', () => {
             if (typeof openBarcodeScanner === 'function') {
                 openBarcodeScanner();
@@ -298,7 +291,7 @@ function renderGoodsItems(items) {
 }
 
 // ============================================================
-// блок 6. поиск
+// блок 6. поиск по тексту
 // ============================================================
 
 async function goodsOnSearch() {
@@ -362,7 +355,72 @@ async function goodsOnSearch() {
 }
 
 // ============================================================
-// блок 7. отрисовка результатов поиска
+// блок 7. поиск по ШТРИХ-КОДУ (вызывается из scanner.js)
+// ============================================================
+
+async function searchGoodsByBarcode(barcode) {
+    const box = document.getElementById('goodsList');
+    const navBox = document.getElementById('goodsNav');
+    const input = document.getElementById('goodsSearch');
+
+    if (!box) return;
+
+    // Визуально вставляем штрих-код в строку поиска
+    if (input) {
+        input.value = barcode;
+        const clearBtn = document.getElementById('goodsClear');
+        if (clearBtn) clearBtn.hidden = false;
+    }
+    
+    if (navBox) navBox.style.display = 'none';
+    box.innerHTML = goodsSkeleton;
+
+    // Отменяем предыдущие запросы
+    const seq = ++goodsSearchSeq;
+    if (goodsAbortController) goodsAbortController.abort();
+    goodsAbortController = new AbortController();
+
+    try {
+        const u = currentUser ? encodeURIComponent(currentUser.id) : '';
+        
+        // ВАЖНО: Отправляем параметр barcode вместо q
+        const url = `${apiBase}/goods?u=${u}&barcode=${encodeURIComponent(barcode)}&t=${Date.now()}`;
+        
+        const res = await fetch(url, {
+            method: 'GET',
+            cache: 'no-store',
+            signal: goodsAbortController.signal
+        });
+
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error((t && t.slice(0, 300)) || ('HTTP ' + res.status));
+        }
+        
+        const data = await res.json();
+        
+        if (seq !== goodsSearchSeq) return;
+
+        // 1С может вернуть как массив items, так и просто массив
+        const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+
+        if (items.length === 0) {
+            box.innerHTML = emptyStateHtml('Товар з таким штрих-кодом не знайдено', '24px 16px', 'search');
+            return;
+        }
+
+        // Отрисовываем результат (передаем truncated = false)
+        renderGoodsSearchResults(items, false);
+
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        if (seq !== goodsSearchSeq) return;
+        box.innerHTML = goodsErrorHtml(err, false);
+    }
+}
+
+// ============================================================
+// блок 8. отрисовка результатов поиска
 // ============================================================
 
 function renderGoodsSearchResults(items, truncated) {
