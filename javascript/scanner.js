@@ -28,6 +28,7 @@ async function openBarcodeScanner() {
     }
 
     // Создаем оверлей со сканером, если его еще нет
+    // Создаем оверлей со сканером, если его еще нет
     let overlay = document.getElementById('barcodeScannerOverlay');
     if (!overlay) {
         overlay = document.createElement('div');
@@ -36,8 +37,13 @@ async function openBarcodeScanner() {
         overlay.innerHTML = `
             <div class="scanner-box">
                 <video id="scannerVideo" playsinline></video>
-                <div class="scanner-laser"></div>
-                <button id="scannerCloseBtn" type="button">Закрити</button>
+                <div class="scanner-overlay">
+                    <div class="scanner-target">
+                        <div class="scanner-laser"></div>
+                    </div>
+                    <p class="scanner-hint">Наведіть камеру на штрих-код</p>
+                </div>
+                <button id="scannerCloseBtn" type="button">Скасувати</button>
             </div>
         `;
         document.body.appendChild(overlay);
