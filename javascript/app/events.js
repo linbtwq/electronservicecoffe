@@ -163,9 +163,15 @@ function initPullToRefresh() {
     let isRefreshing = false;
 
     container.addEventListener('touchstart', (e) => {
+        // Срабатывает только если список прокручен в самый верх
         if (container.scrollTop <= 0 && !isRefreshing) {
             touchStartY = e.touches[0].clientY;
+            touchCurrentY = touchStartY;
             isPulling = true;
+            // Отключаем анимацию, чтобы спиннер двигался четко за пальцем
+            spinner.style.transition = 'none'; 
+        } else {
+            isPulling = false;
         }
     }, { passive: true });
 
@@ -176,21 +182,31 @@ function initPullToRefresh() {
         const deltaY = touchCurrentY - touchStartY;
 
         if (deltaY > 0) {
-            if (e.cancelable) e.preventDefault();
+            // Тянем вниз
+            // ВАЖНО: Мы НЕ вызываем preventDefault(), чтобы не ломать нативный скролл
             const distance = Math.min(deltaY * 0.5, 100); 
-            // Спиннер выезжает сверху вниз. Изначально он в -40px, поэтому прибавляем distance
             spinner.style.transform = `translateX(-50%) translateY(${distance}px)`;
             spinner.style.opacity = Math.min(distance / threshold, 1);
+        } else {
+            // Свайп вверх - отменяем pull-to-refresh, чтобы не мешать прокрутке
+            isPulling = false;
+            spinner.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+            spinner.style.transform = `translateX(-50%) translateY(-40px)`;
+            spinner.style.opacity = '0';
         }
-    }, { passive: false });
+    }, { passive: true });
 
     container.addEventListener('touchend', async () => {
+        // Возвращаем анимацию обратно
+        spinner.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+        
         if (!isPulling) return;
         isPulling = false;
 
         const deltaY = touchCurrentY - touchStartY;
         
         if (deltaY > threshold) {
+            // Активируем обновление
             isRefreshing = true;
             spinner.classList.add('spinning');
             spinner.style.transform = `translateX(-50%) translateY(10px)`;
@@ -198,17 +214,18 @@ function initPullToRefresh() {
             
             if (navigator.vibrate) navigator.vibrate(20);
 
+            // Вызываем ручное обновление
             if (typeof manualRefresh === 'function') {
                 await manualRefresh();
             }
 
-            // Прячем обратно наверх
+            // Прячем спиннер
             spinner.classList.remove('spinning');
             spinner.style.transform = `translateX(-50%) translateY(-40px)`;
             spinner.style.opacity = '0';
             isRefreshing = false;
         } else {
-            // Не дотянули, прячем обратно
+            // Не дотянули, возвращаем на место
             spinner.style.transform = `translateX(-50%) translateY(-40px)`;
             spinner.style.opacity = '0';
         }
