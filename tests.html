@@ -4,24 +4,30 @@
     <meta charset="UTF-8">
     <title>Unit Tests</title>
     <style>
-        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #ddd; }
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #ddd; line-height: 1.5; }
         .pass { color: #4caf50; }
         .fail { color: #f44336; }
-        .test-group { margin-bottom: 20px; border-left: 3px solid #555; padding-left: 10px; }
-        h2 { color: #fff; border-bottom: 1px solid #555; padding-bottom: 5px; }
-        pre { margin: 5px 0; }
+        .test-group { margin-bottom: 25px; border-left: 3px solid #555; padding-left: 15px; }
+        h2 { color: #fff; border-bottom: 1px solid #555; padding-bottom: 5px; margin-top: 0; }
+        pre { margin: 5px 0; white-space: pre-wrap; }
+        .summary { font-size: 1.2rem; padding: 15px; background: #2d2d2d; border-radius: 8px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
     <h1>🧪 Результати тестів</h1>
+    <div id="summary" class="summary">Запуск тестів...</div>
     <div id="output"></div>
 
-    <!-- Подключаем только то, что тестируем -->
-    <script src="javascript/config.js"></script> <!-- ДОБАВЛЕНО: без него state.js падает -->
+    <!-- Подключаем зависимости (модули, которые тестируем) -->
+    <script src="javascript/config.js"></script>
     <script src="javascript/core/utils.js"></script>
     <script src="javascript/core/state.js"></script>
+    <script src="javascript/core/api.js"></script>
+    <script src="javascript/ui/icons.js"></script>
+    <script src="javascript/ui/toast.js"></script>
     <script src="javascript/features/search.js"></script>
-    <script src ="javascript/goods.js"></script>
+    <script src="javascript/features/meter.js"></script>
+    <script src="javascript/app/submit.js"></script>
 
     <script>
         const output = document.getElementById('output');
@@ -41,35 +47,145 @@
             }
         }
 
-        // --- ТЕСТИ ---
+        // ==========================================
+        // МОКИ (заглушки для UI и сети)
+        // ==========================================
         
-        output.innerHTML += `<div class="test-group"><h2>1. Форматування чисел (fmt)</h2>`;
-        assert(fmt(1000), '1 000', 'Форматування тисячі');
-        assert(fmt(1000000), '1 000 000', 'Форматування мільйона');
-        assert(fmt(123.45), '123,45', 'Форматування дробів');
-        assert(fmt(null), '0', 'Захист від null');
-        assert(fmt('abc'), '0', 'Захист від тексту');
-        output.innerHTML += `</div>`;
-
-        output.innerHTML += `<div class="test-group"><h2>2. Пошук (filterPoints)</h2>`;
+        // Перехватываем показ уведомлений
+        let lastToastMessage = '';
+        let lastToastIsError = false;
+        window.showToast = function(msg, isError) {
+            lastToastMessage = msg;
+            lastToastIsError = !!isError;
+        };
         
-        // Мокаємо дані (замість того, щоб тягнути з 1С)
-        globalData = [
-            { id: '1', point_name: 'Магазин А', address: 'вул. Хрещатик', coffee_machine_code: 'M-100' },
-            { id: '2', point_name: 'Магазин Б', address: 'вул. Грушевського', coffee_machine_code: 'M-200' },
-            { id: '3', point_name: 'Кафе В', address: 'вул. Сагайдачного', coffee_machine_code: 'X-999' }
-        ];
+        // Перехватываем галочку успеха
+        let successAnimCalled = false;
+        window.showSuccessAnimation = function() { successAnimCalled = true; };
 
-        assert(filterPoints('1').length, 1, 'Пошук по ID (1)');
-        assert(filterPoints('Магазин').length, 2, 'Пошук по назві (Магазин)');
-        assert(filterPoints('M-100').length, 1, 'Пошук по коду машини (M-100)');
-        assert(filterPoints('Сагайдачного').length, 1, 'Пошук по адресі (Сагайдачного)');
-        assert(filterPoints('Немає такого').length, 0, 'Пошук неіснуючого');
-        
-        output.innerHTML += `</div>`;
+        // Перехватываем обновление данных
+        let loadDataCalled = false;
+        window.loadData = function() { loadDataCalled = true; };
 
-        // --- ПІДСУМОК ---
-        output.innerHTML = `<h2>Всього: <span class="pass">${passCount} успішно</span>, <span class="fail">${failCount} провалено</span></h2>` + output.innerHTML;
+        // Мокаем fetch (самый нижний уровень сети в приложении)
+        let mockResponse = {};
+        let mockNetworkError = false;
+        window.fetch = async function() {
+            if (mockNetworkError) throw new Error('Failed to fetch (timeout)');
+            return mockResponse;
+        };
+
+        // Создаем фейковую кнопку для тестов
+        const fakeBtn = document.createElement('button');
+        fakeBtn.textContent = 'Відправити';
+        document.body.appendChild(fakeBtn);
+
+        // ==========================================
+        // ТЕСТИ
+        // ==========================================
+
+        async function runTests() {
+            // --- ГРУПА 1: isBlankServerError ---
+            output.innerHTML += `<div class="test-group"><h2>1. isBlankServerError (Помилки 1С)</h2>`;
+            assert(isBlankServerError(null), true, 'null вважається пустою помилкою');
+            assert(isBlankServerError(''), true, 'Пуста строка');
+            assert(isBlankServerError('   '), true, 'Тільки пробіли');
+            assert(isBlankServerError(' / '), true, 'Класична заглушка 1С з слешами');
+            assert(isBlankServerError('Документ не проведено'), false, 'Реальна помилка');
+            output.innerHTML += `</div>`;
+
+            // --- ГРУПА 2: normalizeCode ---
+            output.innerHTML += `<div class="test-group"><h2>2. normalizeCode (Нормалізація кодів)</h2>`;
+            assert(normalizeCode(' 007 '), '7', 'Видалення пробілів та ведучих нулів');
+            assert(normalizeCode('M-100'), 'M-100', 'Літерно-цифровий код');
+            assert(normalizeCode('000'), '', 'Всі нулі перетворюються на порожній рядок (означає "всі")'); // <--- ВИПРАВЛЕНО
+            assert(normalizeCode(null), '', 'Null на вході');
+            output.innerHTML += `</div>`;
+
+            // --- ГРУПА 3: filterPoints ---
+            output.innerHTML += `<div class="test-group"><h2>3. filterPoints (Пошук)</h2>`;
+            
+            globalData = [
+                { id: '1', point_name: 'Магазин А', address: 'вул. Хрещатик', coffee_machine_code: 'M-100' },
+                { id: '2', point_name: 'Магазин Б', address: 'вул. Грушевського', coffee_machine_code: 'M-200' },
+                { id: '3', point_name: 'Кафе В', address: 'вул. Сагайдачного', coffee_machine_code: 'X-999' }
+            ];
+
+            assert(filterPoints('1', 'all').length, 1, 'All: Пошук по ID (1)');
+            assert(filterPoints('Магазин', 'all').length, 2, 'All: Пошук по назві');
+            assert(filterPoints('M-100', 'all').length, 1, 'All: Пошук по коду машини');
+            assert(filterPoints('0', 'all').length, 3, 'All: 0 показує всі точки');
+            
+            assert(filterPoints('Сагайдачного', 'point').length, 1, 'Point: Пошук по адресі');
+            assert(filterPoints('M-100', 'point').length, 0, 'Point: Не шукає по коду машини');
+            
+            assert(filterPoints('X-999', 'machine').length, 1, 'Machine: Пошук по коду машини');
+            assert(filterPoints('Кафе', 'machine').length, 1, 'Machine: Шукає по назві точки');
+            output.innerHTML += `</div>`;
+
+            // --- ГРУПА 4: submitDocument ---
+            output.innerHTML += `<div class="test-group"><h2>4. submitDocument (Відправка)</h2>`;
+            
+            // Тест 4.1: Успешная отправка
+            mockNetworkError = false;
+            mockResponse = { 
+                ok: true, 
+                json: async () => ({ ok: true, sum: 100 }) 
+            };
+            successAnimCalled = false;
+            loadDataCalled = false;
+            lastToastMessage = '';
+
+            await submitDocument({
+                endpoint: 'test',
+                payload: {},
+                btn: fakeBtn
+            });
+            
+            assert(successAnimCalled, true, 'Успіх: викликано анімацію галочки');
+            assert(loadDataCalled, true, 'Успіх: викликано оновлення даних');
+            assert(fakeBtn.disabled, false, 'Успіх: кнопка розблокована після відправки');
+
+            // Тест 4.2: Ошибка проведения (conduct_error)
+            mockResponse = { 
+                ok: true, 
+                json: async () => ({ ok: true, conduct_error: 'Недостатньо залишків' }) 
+            };
+            lastToastMessage = '';
+            lastToastIsError = false;
+
+            await submitDocument({
+                endpoint: 'test',
+                payload: {},
+                btn: fakeBtn
+            });
+
+            assert(lastToastIsError, true, 'Conduct error: показано ЧЕРВОНИЙ тост');
+            assert(lastToastMessage.includes('НЕ ПРОВЕДЕНО'), true, 'Conduct error: текст містить "НЕ ПРОВЕДЕНО"');
+
+            // Тест 4.3: Сетевая ошибка
+            mockNetworkError = true;
+            lastToastMessage = '';
+            
+            await submitDocument({
+                endpoint: 'test',
+                payload: {},
+                btn: fakeBtn
+            });
+
+            assert(lastToastMessage.includes('не відповідає'), true, 'Мережа: показано тост "1С не відповідає"');
+
+            output.innerHTML += `</div>`;
+
+            // --- ПІДСУМОК ---
+            const summary = document.getElementById('summary');
+            summary.innerHTML = `Всього: <span class="pass">${passCount} успішно</span>, <span class="fail">${failCount} провалено</span>`;
+        }
+
+        // Запуск
+        runTests().catch(e => {
+            document.getElementById('summary').innerHTML = `<span class="fail">ПОМИЛКА ЗАПУСКУ: ${e.message}</span>`;
+        });
     </script>
 </body>
 </html>

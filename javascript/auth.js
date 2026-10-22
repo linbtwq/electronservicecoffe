@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // сессия есть, прячем форму и стартуем приложение
         if (authOverlay) authOverlay.style.display = 'none';
         showUserInfo();
-        if (typeof startApp === 'function') startApp();
+        if (typeof startApp === 'function') startApp(); setTimeout(() => startApp(), 0);
     } else {
         // сессии нет, показываем форму
         if (authOverlay) authOverlay.style.display = 'flex';

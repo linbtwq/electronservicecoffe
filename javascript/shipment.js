@@ -196,7 +196,7 @@ function renderShipmentBody() {
         })
     }
 
-    // Кнопка переключения клавиатуры (numeric ↔ text)
+    // нопка переключения клавиатуры (numeric ↔ text)
     const numericBtn = document.getElementById('shipmentNumericBtn')
     if (numericBtn && searchInput) {
         numericBtn.addEventListener('click', () => {

@@ -19,7 +19,7 @@ let _scanTimerId = null;
 let _barcodeDetector = null;
 
 async function openBarcodeScanner() {
-    // Проверяем поддержку API (в основном работает в Chrome на Android)
+    //проверяем поддержку API (в основном работает в Chrome на Android)
     if (!('BarcodeDetector' in window)) {
         if (typeof showToast === 'function') {
             showToast('На жаль, ваш браузер не підтримує сканер штрих-кодів. Введіть код вручну.', true);
@@ -27,10 +27,10 @@ async function openBarcodeScanner() {
         return;
     }
 
-    // Создаем оверлей со сканером, если его еще нет
+    // создаем оверлей со сканером, если его еще нет
     let overlay = document.getElementById('barcodeScannerOverlay');
     
-    // Защита от двойного клика
+    // защита от двойного клика
     if (overlay && overlay.classList.contains('active')) return;
 
     if (!overlay) {
@@ -52,7 +52,7 @@ async function openBarcodeScanner() {
         document.body.appendChild(overlay);
 
         overlay.querySelector('#scannerCloseBtn').addEventListener('click', closeBarcodeScanner);
-        // Закрытие по клику вне видео (на черном фоне)
+        // закрытие по клику вне видео (на черном фоне)
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) closeBarcodeScanner();
         });
@@ -61,7 +61,7 @@ async function openBarcodeScanner() {
     overlay.classList.add('active');
 
     try {
-        // Запрашиваем камеру (facingMode: environment - задняя камера)
+        // Ззпрашиваем камеру (facingMode: environment - задняя камера)
         _videoStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment' }
         });

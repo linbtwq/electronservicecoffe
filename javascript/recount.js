@@ -209,13 +209,16 @@ async function openRecountModal(pointId) {
         
         // нормализуем поля из 1с
         // actual изначально равен book, но не меньше нуля
-        recountItems = data.map(it => ({
-            Code: String(it.Code || ''),
-            Name: String(it.Name || ''),
-            price: Number(it.price) || 0,
-            book: Number(it.book) || 0,
-            actual: Math.max(0, Math.round(Number(it.book) || 0))
-        }))
+        recountItems = data.map(it => {
+        const bookVal = Number(it.book) || 0;
+        return {
+        Code: String(it.Code || ''),
+        Name: String(it.Name || ''),
+        price: Number(it.price) || 0,
+        book: bookVal,
+        actual: bookVal 
+    };
+})
 
         // сервер вернул пустой массив, значит нечего пересчитывать
         if (!recountItems.length) {
@@ -292,7 +295,7 @@ function renderRecountBody() {
 
         const step = Number(btn.dataset.step) || 0
 
-        recountItems[idx].actual = Math.max(0, recountItems[idx].actual + step)
+        recountItems[idx].actual = recountItems[idx].actual + step
 
         const inp = row.querySelector('.qty-input')
         if (inp) inp.value = recountItems[idx].actual
@@ -302,21 +305,20 @@ function renderRecountBody() {
     })
 
     grid.addEventListener('input', e => {
-        if (!e.target.classList.contains('qty-input')) return
+    if (!e.target.classList.contains('qty-input')) return
+    const row = e.target.closest('[data-recount-row]')
+    if (!row) return
+    const idx = Number(row.dataset.idx)
+    if (!recountItems[idx]) return
 
-        const row = e.target.closest('[data-recount-row]')
-        if (!row) return
+    
+    e.target.value = e.target.value.replace(/[^0-9.,-]/g, '')
+    
+    recountItems[idx].actual = Number(e.target.value.replace(',', '.')) || 0
 
-        const idx = Number(row.dataset.idx)
-        if (!recountItems[idx]) return
-
-        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6)
-        
-        recountItems[idx].actual = Number(e.target.value) || 0
-
-        updateRecountRow(row, idx)
-        updateRecountSummary()
-    })
+    updateRecountRow(row, idx)
+    updateRecountSummary()
+})
 
     grid.addEventListener('focusout', e => {
         if (!e.target.classList.contains('qty-input')) return
@@ -363,8 +365,7 @@ function updateRecountRow(row, idx) {
 
         const sign = deviation > 0 ? '+' : ''
         devEl.className = cls
-        devEl.textContent = `${sign}${fmt(deviation)} шт · ${sign}${fmt(sumDeviation)} ₴`
-    }
+        devEl.textContent = `${sign}${fmt(deviation)} · ${sign}${fmt(sumDeviation)} ₴`    }
 
     // подсвечиваем строку если есть отклонение
     row.classList.toggle('picked', deviation !== 0)
@@ -394,7 +395,7 @@ function updateRecountSummary() {
     const signQty = totalQty > 0 ? '+' : ''
     const signSum = totalSum > 0 ? '+' : ''
 
-    summary.innerHTML = `Разом: <b>${signQty}${fmt(totalQty)} шт</b> на <b>${signSum}${fmt(totalSum)} ₴</b>`
+    summary.innerHTML = `Разом: <b>${signQty}${fmt(totalQty)}</b> на <b>${signSum}${fmt(totalSum)} ₴</b>`
 
     // если отклонений нет отправлять нечего
     btn.disabled = recountSending || totalQty === 0
