@@ -78,6 +78,7 @@ function ensureShipmentModal() {
 
 function closeShipmentModal() {
     if (shipmentSending) return
+    clearShipmentScanHighlight();
     document.getElementById('shipmentOverlay')?.classList.remove('active')
     shipmentPointId = null
     shipmentRequestId = null
@@ -383,45 +384,169 @@ async function submitShipment() {
     if (shipmentPointId) updateShipmentSummary();
 }
 
+// ============================================================
+// поиск товара по штрих-коду в окне отгрузки
+// три сценария:
+//   1) товар не найден в номенклатуре - красная ошибка
+//   2) товар найден, но нет остатка - красная ошибка с остатком
+//   3) товар найден и есть на складе - зелёный тост + подсветка + скролл
+// ============================================================
+
+let _shipmentHighlightTimer = null;
+let _shipmentScanSeq = 0;
+
 async function searchShipmentByBarcode(barcode) {
     const searchInput = document.getElementById('shipmentSearch');
     if (!searchInput) return;
 
-    searchInput.value = barcode;
+    // нормализуем: убираем пробелы и переводы строк
+    const cleanBarcode = String(barcode || '').replace(/\s+/g, '');
+
+    if (!cleanBarcode) {
+        showToast('Порожній штрих-код', true);
+        return;
+    }
+
+    // отменяем предыдущий запрос и старую подсветку
+    const seq = ++_shipmentScanSeq;
+    clearShipmentScanHighlight();
+
+    // НЕ оставляем штрих-код в поле, чтобы он не мешал фильтру
+    searchInput.value = '';
     searchInput.disabled = true;
+
+    const scanBtn = document.getElementById('shipmentScanBtn');
+    if (scanBtn) scanBtn.disabled = true;
+
+    // сбрасываем предыдущий фильтр, чтобы подсвеченная строка была видна
+    shipmentSearchQuery = '';
+    applyShipmentSearch();
 
     try {
         const u = currentUser ? encodeURIComponent(currentUser.id) : '';
         const res = await fetchWithTimeout(
-            `${apiBase}/goods?u=${u}&barcode=${encodeURIComponent(barcode)}&t=${Date.now()}`,
+            `${apiBase}/goods?u=${u}&barcode=${encodeURIComponent(cleanBarcode)}&t=${Date.now()}`,
             { method: 'GET', cache: 'no-store' },
             APP_CONFIG.loadTimeoutMs
         );
 
-        if (!res.ok) throw new Error('Помилка мережі');
-        const data = await res.json();
-        const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+        if (!res.ok) {
+            const errText = await res.text().catch(() => '');
+            throw new Error((errText && errText.slice(0, 160)) || 'Помилка мережі');
+        }
 
-        if (items.length === 0) {
-            showToast('Товар не знайдено', true);
-            searchInput.value = '';
+        const data = await res.json();
+        const items = Array.isArray(data.items)
+            ? data.items
+            : (Array.isArray(data) ? data : []);
+
+        // гонка пользователь успел отсканировать другой код
+        if (seq !== _shipmentScanSeq) return;
+
+        //  сценарий 1 товара нет в номенклатуре
+        if (!items.length) {
+            showToast(
+                `Товар зі штрих-кодом ${cleanBarcode} не знайдено в номенклатурі 1С`,
+                true
+            );
             return;
         }
 
         const foundItem = items[0];
-        
-        // в инпут пишем именно штрих-код (как в drawer)
-        searchInput.value = barcode;
-        
-        // а для фильтрации списка используем 1С-код товара, который вернул сервер
-        shipmentSearchQuery = foundItem.code ? String(foundItem.code).toLowerCase() : foundItem.name.toLowerCase();
-        
-        applyShipmentSearch();
+        const foundName = String(foundItem.name || '').trim() || 'Без назви';
+
+        // сценарий 2 товар есть в номенклатуре, ищем на складе
+        const idx = findShipmentItemIndex(foundItem);
+
+        if (idx < 0) {
+            const stock = Number(foundItem.stock);
+            const stockText = isFinite(stock) && stock > 0
+                ? ` (залишок у 1С: ${stock})`
+                : '';
+            showToast(
+                `Товар «${foundName}» знайдено в номенклатурі, ` +
+                `але на складі немає залишку${stockText}`,
+                true
+            );
+            return;
+        }
+
+        //сценарий 3 товар найден и есть на складе 
+        const shipmentItem = shipmentItems[idx];
+        const priceIsZero = !Number(shipmentItem.price);
+
+        highlightShipmentRow(idx);
+
+        if (priceIsZero) {
+            showToast(
+                `Знайдено: ${foundName}. Увага: ціна в 1С не вказана (0 ₴)`,
+                true
+            );
+        } else {
+            showToast(`Знайдено: ${foundName}`, false);
+        }
+
     } catch (err) {
-        showToast('Помилка пошуку', true);
-        searchInput.value = '';
+        if (seq !== _shipmentScanSeq) return;
+        const msg = err && err.message ? err.message : String(err);
+        showToast(`Помилка пошуку: ${msg}`, true);
     } finally {
-        searchInput.disabled = false;
-        searchInput.focus();
+        if (seq === _shipmentScanSeq) {
+            searchInput.disabled = false;
+            if (scanBtn) scanBtn.disabled = false;
+        }
     }
+}
+
+// ищет индекс товара в shipmentItems по нормализованному коду или имени
+function findShipmentItemIndex(foundItem) {
+    const normCode = normalizeCode(foundItem.code);
+    const normName = String(foundItem.name || '').trim().toLowerCase();
+
+    if (normCode) {
+        const i = shipmentItems.findIndex(it => normalizeCode(it.code) === normCode);
+        if (i >= 0) return i;
+    }
+
+    if (normName) {
+        const i = shipmentItems.findIndex(
+            it => String(it.name || '').trim().toLowerCase() === normName
+        );
+        if (i >= 0) return i;
+    }
+
+    return -1;
+}
+
+function clearShipmentScanHighlight() {
+    if (_shipmentHighlightTimer) {
+        clearTimeout(_shipmentHighlightTimer);
+        _shipmentHighlightTimer = null;
+    }
+    document.querySelectorAll('#shipmentGrid .assort-row.scanned').forEach(row => {
+        row.classList.remove('scanned');
+    });
+}
+
+function highlightShipmentRow(idx) {
+    const row = document.querySelector(
+        `#shipmentGrid [data-shipment-row][data-idx="${idx}"]`
+    );
+    if (!row) return;
+
+    row.style.display = '';
+    row.classList.add('scanned');
+
+    try {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (e) {
+        try { row.scrollIntoView(); } catch (e2) {}
+    }
+
+    if (navigator.vibrate) navigator.vibrate(40);
+
+    _shipmentHighlightTimer = setTimeout(() => {
+        row.classList.remove('scanned');
+        _shipmentHighlightTimer = null;
+    }, 2200);
 }

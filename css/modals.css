@@ -323,6 +323,39 @@
     background: var(--primary-soft);
 }
 
+/* подсветка строки, найденной по штрих-коду */
+.assort-row.scanned {
+    position: relative;
+    border-color: var(--success);
+    background: var(--success-soft);
+    box-shadow:
+        0 0 0 3px var(--success-soft),
+        0 6px 18px rgba(40, 124, 84, 0.15);
+    animation: scannedPulse 0.5s var(--ease, ease-out);
+}
+
+.assort-row.scanned::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--success);
+}
+
+@keyframes scannedPulse {
+    0%   { transform: scale(0.98); box-shadow: 0 0 0 0 var(--success); }
+    50%  { transform: scale(1.005); }
+    100% { transform: scale(1); }
+}
+
+.low-end .assort-row.scanned { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+    .assort-row.scanned { animation: none; }
+}
+
 .assort-row-head {
     display: flex;
     justify-content: space-between;

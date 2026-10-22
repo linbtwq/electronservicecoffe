@@ -440,20 +440,25 @@ async function searchGoodsByBarcode(barcode) {
             : (Array.isArray(data) ? data : []);
 
         if (items.length === 0) {
-            box.innerHTML = emptyStateHtml(
-                `Товар зі штрих-кодом ${cleanBarcode} не знайдено`,
-                '24px 16px',
-                'search'
-            );
-            return;
+        box.innerHTML = emptyStateHtml(
+        `Товар зі штрих-кодом ${cleanBarcode} не знайдено`,
+        '24px 16px',
+        'search'
+     );
+     showToast(`Товар зі штрих-кодом ${cleanBarcode} не знайдено`, true);
+     return;
         }
+
+        renderGoodsSearchResults(items, false);
+        showToast(`Знайдено: ${String(items[0].name || 'товар').trim()}`, false);
 
         renderGoodsSearchResults(items, false);
 
     } catch (err) {
-        if (err.name === 'AbortError') return;
-        if (seq !== goodsSearchSeq) return;
-        box.innerHTML = goodsErrorHtml(err, false);
+    if (err.name === 'AbortError') return;
+    if (seq !== goodsSearchSeq) return;
+    box.innerHTML = goodsErrorHtml(err, false);
+    showToast('Помилка пошуку за штрих-кодом', true);
     }
 }
 
