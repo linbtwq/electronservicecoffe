@@ -13,9 +13,10 @@
 
 .toast {
     position: fixed;
-    top: -80px;
+    top: 24px; 
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -200%); 
+    opacity: 0; 
     display: flex;
     align-items: center;
     gap: 10px;
@@ -30,7 +31,12 @@
     z-index: 9999;
     pointer-events: none;
     max-width: calc(100vw - 40px);
-    transition: top 0.4s var(--ease-bounce);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.toast.show {
+    transform: translate(-50%, 0); 
+    opacity: 1;
 }
 
 /* иконка галочки через маску */
@@ -54,8 +60,6 @@
     -webkit-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 8v5M12 16h.01'/%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E") center/contain no-repeat;
             mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 8v5M12 16h.01'/%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-
-.toast.show { top: 24px; }
 
 /* ============================================================
    блок 2

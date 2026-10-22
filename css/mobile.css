@@ -533,9 +533,8 @@
    ============================================================ */
 
 @media (max-width: 480px) {
-    .toast.show { top: max(16px, env(safe-area-inset-top, 0px)); }
-
     .toast {
+        top: max(16px, env(safe-area-inset-top, 0px));
         max-width: calc(100vw - 24px);
         font-size: 0.86rem;
         padding: 11px 16px 11px 14px;
@@ -547,7 +546,6 @@
         height: 16px;
     }
 }
-
 /* ============================================================
    блок 5
    отключения на слабых устройствах и в скрытой вкладке
