@@ -191,9 +191,24 @@ function renderShipmentBody() {
 
     const searchInput = document.getElementById('shipmentSearch')
     if (searchInput) {
+        // обычный ввод (фильтрация по буквам)
         searchInput.addEventListener('input', () => {
             shipmentSearchQuery = searchInput.value.trim().toLowerCase()
             applyShipmentSearch()
+        })
+
+        // обработка Enter (для ручного ввода и блютуз-сканеров)
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const q = searchInput.value.trim();
+                if (!q) return;
+
+                // Если это штрихкод (8+ цифр)
+                if (/^\d{8,}$/.test(q)) {
+                    searchShipmentByBarcode(q);
+                }
+            }
         })
     }
 

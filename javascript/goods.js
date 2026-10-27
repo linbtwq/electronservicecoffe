@@ -443,14 +443,18 @@ async function searchGoodsByBarcode(barcode) {
         return;
     }
 
+    // ОЧИЩАЕМ ПОЛЕ ВВОДА
     if (input) {
-        input.value = cleanBarcode;
+        input.value = '';
         const clearBtn = document.getElementById('goodsClear');
-        if (clearBtn) clearBtn.hidden = false;
+        if (clearBtn) clearBtn.hidden = true;
     }
 
     if (navBox) navBox.style.display = 'none';
     box.innerHTML = goodsSkeleton;
+
+    // ставим флаг, чтобы при переоткрытии меню не сбрасывало результаты
+    goodsRendered = true;
 
     const seq = ++goodsBarcodeSeq;
     if (goodsBarcodeAbort) goodsBarcodeAbort.abort();

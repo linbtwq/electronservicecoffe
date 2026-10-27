@@ -193,13 +193,11 @@ async function startScanLoop() {
     if (!video) return;
     if (video.ended) return;
 
-    // видео на паузе (свернули вкладку, скрыли экран) не убиваем цикл, ждём
     if (video.paused) {
         _scanTimerId = setTimeout(startScanLoop, 300);
         return;
     }
 
-    // защита от параллельных detect()
     if (_scanInFlight) {
         _scanTimerId = setTimeout(startScanLoop, 80);
         return;
@@ -229,10 +227,7 @@ async function startScanLoop() {
                 // маршрут 2 каталог в drawer
                 const input = document.getElementById('goodsSearch');
                 if (input) {
-                    input.value = code;
-                    const clearBtn = document.getElementById('goodsClear');
-                    if (clearBtn) clearBtn.hidden = false;
-
+                    // убрали input.value = code, так как searchGoodsByBarcode сам очистит поле
                     if (typeof searchGoodsByBarcode === 'function') {
                         searchGoodsByBarcode(code);
                     }
