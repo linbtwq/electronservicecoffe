@@ -72,10 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const pinInput = document.getElementById('pinInput');
 
     if (currentUser) {
-        // сессия есть, прячем форму и стартуем приложение
         if (authOverlay) authOverlay.style.display = 'none';
         showUserInfo();
-        if (typeof startApp === 'function') startApp(); setTimeout(() => startApp(), 0);
+        if (typeof startApp === 'function') startApp();
     } else {
         // сессии нет, показываем форму
         if (authOverlay) authOverlay.style.display = 'flex';
@@ -220,6 +219,10 @@ function logout() {
     if (typeof closeDrawer === 'function') {
         try { closeDrawer(); } catch (e) {}
     }
+
+    if (typeof closeBarcodeScanner === 'function') {
+        try { closeBarcodeScanner(); } catch (e) {}
+}
 
     // принудительно закрываем все активные модалки
     document.querySelectorAll('.modal-overlay.active')

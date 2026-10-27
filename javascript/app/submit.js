@@ -12,6 +12,15 @@
 // - проверка поля conduct_error (документ создан, но не проведен)
 // - показ галочки успеха и обновление данных
 //
+// особенности
+// onSuccess — это пользовательский коллбэк который
+// закрывает модалку и чистит форму.
+// он не должен ронять loadData,
+// поэтому обёрнут в try/catch.
+//
+// порядок подключения
+// index.html подключает submit.js перед features-модулями,
+// которые его используют: assortments, recount, shipment, notes, payment.
 // ============================================================
 
 async function submitDocument({
@@ -48,13 +57,13 @@ async function submitDocument({
 
         try { responseBody = await response.json(); } catch (e) {}
 
-        // 1С может ответить 200 но с полем conduct_error
+        // 1с может ответить 200 но с полем conduct_error
         if (responseBody && responseBody.conduct_error != null) {
             const raw = String(responseBody.conduct_error);
             if (!isBlankServerError(raw)) conductError = raw;
         }
 
-        // Явная ошибка от 1С (например, отказ в проведении)
+        // явная ошибка от 1с (например, отказ в проведении)
         if (responseBody && responseBody.ok === false) {
             throw new Error(responseBody.error || responseBody.debt_error || '1С відхилила документ.');
         }
@@ -84,10 +93,25 @@ async function submitDocument({
             }
 
             // вызываем коллбэк для специфических действий (очистка формы, закрытие модалки)
-            if (typeof onSuccess === 'function') onSuccess(responseBody, conductError);
+            // ловим ошибку чтобы не сломать последующий loadData
+            if (typeof onSuccess === 'function') {
+                try {
+                    onSuccess(responseBody, conductError);
+                } catch (e) {
+                    console.error('[submitDocument] onSuccess failed:', e);
+                }
+            }
 
             // обновляем данные с сервера
-            if (typeof loadData === 'function') loadData({ silent: true });
+            // тоже в try/catch: если 1с недоступна после отправки,
+            // пользователь всё равно должен увидеть результат документа
+            if (typeof loadData === 'function') {
+                try {
+                    loadData({ silent: true });
+                } catch (e) {
+                    console.error('[submitDocument] loadData failed:', e);
+                }
+            }
         }
 
         // снимаем спиннер и разблокируем крестик в самом конце, когда окно уже закрылось

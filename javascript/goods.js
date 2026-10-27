@@ -8,15 +8,30 @@
 // - инициализировать разметку и обработчики каталога
 // - грузить уровни дерева групп и товаров
 // - искать по названию и коду с отменой устаревших запросов
-// - искать по штрих-коду (вызывается из scanner.js)
+// - искать по штрих-коду (вызывается из scanner.js или вручную)
+//
+// особенности
+// распознаем штрихкод при ручном вводе или блютуз-сканере.
+// если ввели 8 и более цифр подряд, это точно штрихкод.
+// в этом случае запрос уходит на поиск по штрихкоду, а не по имени.
+// также ловим клавишу Enter, которую посылают аппаратные сканеры.
+//
+// три независимых канала отмены:
+//   goodsLevelAbort/goodsLevelSeq — уровни дерева
+//   goodsSearchAbort/goodsSearchSeq — текстовый поиск
+//   goodsBarcodeAbort/goodsBarcodeSeq — поиск по штрих-коду
 // ============================================================
 
-const GOODS_MIN_QUERY = 1;
+const GOODS_MIN_QUERY = 2;
 let goodsRendered = false;
 let goodsCurrentParent = '';
 let goodsSearchSeq = 0;
 let goodsTimer = null;
-let goodsAbortController = null;
+let goodsSearchAbort = null;
+let goodsBarcodeSeq = 0;
+let goodsBarcodeAbort = null;
+let goodsLevelSeq = 0;
+let goodsLevelAbort = null;
 const goodsSearchCache = new Map();
 
 // ============================================================
@@ -31,10 +46,10 @@ function goodsUrl(params) {
     return `${apiBase}/goods?u=${u}${extra}&t=${Date.now()}`;
 }
 
-async function goodsFetch(params) {
+async function goodsFetch(params, signal) {
     const res = await fetchWithTimeout(
         goodsUrl(params),
-        { method: 'GET', cache: 'no-store' },
+        { method: 'GET', cache: 'no-store', signal },
         APP_CONFIG.loadTimeoutMs
     );
     if (!res.ok) {
@@ -66,8 +81,6 @@ function goodsIconMarkup(kind) {
     return `<svg class="dg-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 }
 
-// остаток на складе сотрудника
-// если поле stock не пришло (не задан склад) ничего не показываем
 function goodsStockHtml(it) {
     if (it.stock === undefined || it.stock === null) return '';
     const n = Number(it.stock);
@@ -82,7 +95,7 @@ function goodsItemHtml(it) {
     const displayName = rawName.length ? rawName : 'Позиція без назви';
     const rawCode = String(it.code || '').trim();
     const cleanCode = rawCode.replace(/\s+/g, '');
-    
+
     return `
         <div class="dg-row dg-item" data-id="${escapeHtml(it.id)}" data-type="item">
             <div class="dg-item-icon">${goodsIconMarkup('product')}</div>
@@ -125,8 +138,8 @@ function initDrawerGoods() {
         
         <div class="dg-search-wrap">
             <div class="dg-search-inner">
-                <input type="text" id="goodsSearch" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
-                    placeholder="Пошук за назвою або кодом" aria-label="Пошук номенклатури">
+                <input type="text" id="goodsSearch" autocomplete="off"
+                    placeholder="Пошук за назвою, кодом або штрихкодом" aria-label="Пошук номенклатури">
                 <button type="button" class="dg-clear" id="goodsClear" aria-label="Очистити" hidden>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
@@ -151,10 +164,31 @@ function initDrawerGoods() {
     const scanBtn = host.querySelector('#goodsScanBtn');
 
     if (searchInput) {
+        // 1. Обычный ввод (ждем паузу 250мс)
         searchInput.addEventListener('input', () => {
             if (clearBtn) clearBtn.hidden = !searchInput.value;
             clearTimeout(goodsTimer);
             goodsTimer = setTimeout(goodsOnSearch, 250);
+        });
+
+        // 2. Обработка Enter (для блютуз-сканеров)
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(goodsTimer); // Отменяем ожидание паузы, ищем сразу
+
+                const q = searchInput.value.trim();
+                if (!q) return;
+
+                // Если 8 и более цифр подряд — это точно штрихкод
+                if (/^\d{8,}$/.test(q)) {
+                    if (typeof searchGoodsByBarcode === 'function') {
+                        searchGoodsByBarcode(q);
+                    }
+                } else {
+                    goodsOnSearch();
+                }
+            }
         });
     }
 
@@ -226,15 +260,23 @@ async function loadGoodsLevel(parentId) {
     const navBox = document.getElementById('goodsNav');
     if (!box) return;
 
+    const seq = ++goodsLevelSeq;
+    if (goodsLevelAbort) goodsLevelAbort.abort();
+    goodsLevelAbort = new AbortController();
+
     goodsCurrentParent = parentId || '';
     goodsRendered = false;
     box.innerHTML = goodsSkeleton;
 
     try {
-        const data = await goodsFetch({ parent: goodsCurrentParent });
+        const data = await goodsFetch({ parent: goodsCurrentParent }, goodsLevelAbort.signal);
+        if (seq !== goodsLevelSeq) return;
+
         renderGoodsNav(Array.isArray(data.breadcrumb) ? data.breadcrumb : []);
         renderGoodsItems(Array.isArray(data.items) ? data.items : []);
     } catch (err) {
+        if (err.name === 'AbortError') return;
+        if (seq !== goodsLevelSeq) return;
         if (navBox) navBox.innerHTML = '';
         box.innerHTML = goodsErrorHtml(err, true);
     }
@@ -304,6 +346,9 @@ function renderGoodsItems(items) {
 
 // ============================================================
 // блок 6. поиск по тексту
+//
+// добавлена проверка: если строка состоит из 8+ цифр, 
+// считаем это штрихкодом и вызываем searchGoodsByBarcode
 // ============================================================
 
 async function goodsOnSearch() {
@@ -313,18 +358,26 @@ async function goodsOnSearch() {
     if (!input || !box) return;
 
     const q = input.value.trim();
+
+    // если ввели только цифры (8 и больше), это штрихкод
+    if (/^\d{8,}$/.test(q)) {
+        if (typeof searchGoodsByBarcode === 'function') {
+            searchGoodsByBarcode(q);
+            return;
+        }
+    }
+
     const seq = ++goodsSearchSeq;
 
     if (q.length < GOODS_MIN_QUERY) {
         if (navBox) navBox.style.display = '';
-        if (goodsAbortController) goodsAbortController.abort();
+        if (goodsSearchAbort) goodsSearchAbort.abort();
         loadGoodsLevel(goodsCurrentParent);
         return;
     }
 
     if (navBox) navBox.style.display = 'none';
 
-    // Проверяем кеш (если данные свежие - до 60 секунд)
     if (goodsSearchCache.has(q)) {
         const cached = goodsSearchCache.get(q);
         if (cached && cached.at && (Date.now() - cached.at < 60000)) {
@@ -335,10 +388,8 @@ async function goodsOnSearch() {
 
     box.innerHTML = goodsSkeleton;
 
-    if (goodsAbortController) {
-        goodsAbortController.abort();
-    }
-    goodsAbortController = new AbortController();
+    if (goodsSearchAbort) goodsSearchAbort.abort();
+    goodsSearchAbort = new AbortController();
 
     try {
         const url = goodsUrl({ q });
@@ -347,7 +398,7 @@ async function goodsOnSearch() {
             {
                 method: 'GET',
                 cache: 'no-store',
-                signal: goodsAbortController.signal
+                signal: goodsSearchAbort.signal
             },
             APP_CONFIG.loadTimeoutMs
         );
@@ -362,8 +413,7 @@ async function goodsOnSearch() {
 
         const items = Array.isArray(data.items) ? data.items : [];
         if (goodsSearchCache.size > 200) goodsSearchCache.clear();
-        
-        // Сохраняем в кеш с меткой времени
+
         goodsSearchCache.set(q, { items, truncated: !!data.truncated, at: Date.now() });
 
         renderGoodsSearchResults(items, !!data.truncated);
@@ -380,13 +430,12 @@ async function goodsOnSearch() {
 // ============================================================
 
 async function searchGoodsByBarcode(barcode) {
-    const box    = document.getElementById('goodsList');
+    const box = document.getElementById('goodsList');
     const navBox = document.getElementById('goodsNav');
-    const input  = document.getElementById('goodsSearch');
+    const input = document.getElementById('goodsSearch');
 
     if (!box) return;
 
-    // нормализуем: убираем любые пробелы и переводы строк
     const cleanBarcode = String(barcode || '').replace(/\s+/g, '');
 
     if (!cleanBarcode) {
@@ -394,7 +443,6 @@ async function searchGoodsByBarcode(barcode) {
         return;
     }
 
-    // визуально вставляем штрих-код в строку поиска
     if (input) {
         input.value = cleanBarcode;
         const clearBtn = document.getElementById('goodsClear');
@@ -404,23 +452,20 @@ async function searchGoodsByBarcode(barcode) {
     if (navBox) navBox.style.display = 'none';
     box.innerHTML = goodsSkeleton;
 
-    // отменяем предыдущие запросы
-    const seq = ++goodsSearchSeq;
-    if (goodsAbortController) goodsAbortController.abort();
-    goodsAbortController = new AbortController();
+    const seq = ++goodsBarcodeSeq;
+    if (goodsBarcodeAbort) goodsBarcodeAbort.abort();
+    goodsBarcodeAbort = new AbortController();
 
     try {
         const u = currentUser ? encodeURIComponent(currentUser.id) : '';
         const url = `${apiBase}/goods?u=${u}&barcode=${encodeURIComponent(cleanBarcode)}&t=${Date.now()}`;
 
-        // используем fetchWithTimeout как везде в проекте,
-        // иначе при зависшей 1С пользователь видит вечный скелетон
         const res = await fetchWithTimeout(
             url,
             {
                 method: 'GET',
                 cache: 'no-store',
-                signal: goodsAbortController.signal
+                signal: goodsBarcodeAbort.signal
             },
             APP_CONFIG.loadTimeoutMs
         );
@@ -432,36 +477,32 @@ async function searchGoodsByBarcode(barcode) {
 
         const data = await res.json();
 
-        if (seq !== goodsSearchSeq) return;
+        if (seq !== goodsBarcodeSeq) return;
 
-        // 1С может вернуть как объект с items, так и просто массив
         const items = Array.isArray(data.items)
             ? data.items
             : (Array.isArray(data) ? data : []);
 
         if (items.length === 0) {
-        box.innerHTML = emptyStateHtml(
-        `Товар зі штрих-кодом ${cleanBarcode} не знайдено`,
-        '24px 16px',
-        'search'
-     );
-     showToast(`Товар зі штрих-кодом ${cleanBarcode} не знайдено`, true);
-     return;
+            box.innerHTML = emptyStateHtml(
+                `Товар зі штрих-кодом ${cleanBarcode} не знайдено`,
+                '24px 16px',
+                'search'
+            );
+            showToast(`Товар зі штрих-кодом ${cleanBarcode} не знайдено`, true);
+            return;
         }
 
         renderGoodsSearchResults(items, false);
         showToast(`Знайдено: ${String(items[0].name || 'товар').trim()}`, false);
 
-        renderGoodsSearchResults(items, false);
-
     } catch (err) {
-    if (err.name === 'AbortError') return;
-    if (seq !== goodsSearchSeq) return;
-    box.innerHTML = goodsErrorHtml(err, false);
-    showToast('Помилка пошуку за штрих-кодом', true);
+        if (err.name === 'AbortError') return;
+        if (seq !== goodsBarcodeSeq) return;
+        box.innerHTML = goodsErrorHtml(err, false);
+        showToast('Помилка пошуку за штрих-кодом', true);
     }
 }
-
 
 // ============================================================
 // блок 8. отрисовка результатов поиска

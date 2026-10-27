@@ -9,17 +9,35 @@
 // - распознать QR-код или штрих-код
 // - вставить результат в строку поиска номенклатуры
 //
+// особенности
+// нативный BarcodeDetector есть не везде.
+// на ios safari и части firefox его нет вообще.
+// поэтому подключаем полифилл: barcode-polyfill.js + zbar-wasm.js.
+// полифилл экспортирует класс BarcodeDetectorPolyfill в глобальной области.
+// если ни нативного, ни полифилла нет — показываем тост и выходим.
+//
+// порядок подключения в index.html:
+//   zbar-wasm.js -> barcode-polyfill.js -> scanner.js
+// полифилл тянет zbar.wasm с cdn при первом детекторе,
+// значит первый скан требует интернет.
+//
 // зависимости
-// - BarcodeDetector API (работает в Chrome на Android)
-// - goods.js для вызова функции поиска
+// - BarcodeDetector API (chrome на android) или BarcodeDetectorPolyfill
+// - goods.js для searchGoodsByBarcode
+// - shipment.js для searchShipmentByBarcode
+// - ui/toast.js для showToast
 // ============================================================
 
+// состояние сканера
+// пока сканер открыт, эти переменные живут.
+// после closeBarcodeScanner всё обнуляется.
 let _videoStream = null;
 let _scanTimerId = null;
 let _barcodeDetector = null;
+let _scanInFlight = false;
 
 // короткий бип на успешный скан
-// на iOS вибро нет, без звука пользователь не поймёт что сработало
+// на ios вибро нет, без звука пользователь не поймёт что сработало
 let _scanAudioCtx = null;
 
 function playScanBeep() {
@@ -47,11 +65,36 @@ function playScanBeep() {
     } catch (e) {}
 }
 
+// ============================================================
+// блок 1. выбор класса детектора
+//
+// порядок такой
+// 1. нативный BarcodeDetector (chrome на android)
+// 2. полифилл BarcodeDetectorPolyfill (ios/firefox с wasm)
+// 3. null значит ни того ни другого нет
+//
+// возвращаем сам класс а не инстанс,
+// потому что форматы поддерживаемые мы узнаём до создания.
+// ============================================================
 
+function resolveBarcodeDetectorClass() {
+    if (typeof window !== 'undefined' && window.BarcodeDetector) {
+        return window.BarcodeDetector;
+    }
+    if (typeof barcodeDetectorPolyfill !== 'undefined' && barcodeDetectorPolyfill.BarcodeDetectorPolyfill) {
+        return barcodeDetectorPolyfill.BarcodeDetectorPolyfill;
+    }
+    return null;
+}
+
+// ============================================================
+// блок 2. открытие камеры
+// ============================================================
 
 async function openBarcodeScanner() {
-    //проверяем поддержку API (в основном работает в Chrome на Android)
-    if (!('BarcodeDetector' in window)) {
+    // сначала решаем каким классом будем пользоваться
+    const DetectorClass = resolveBarcodeDetectorClass();
+    if (!DetectorClass) {
         if (typeof showToast === 'function') {
             showToast('На жаль, ваш браузер не підтримує сканер штрих-кодів. Введіть код вручну.', true);
         }
@@ -60,7 +103,7 @@ async function openBarcodeScanner() {
 
     // создаем оверлей со сканером, если его еще нет
     let overlay = document.getElementById('barcodeScannerOverlay');
-    
+
     // защита от двойного клика
     if (overlay && overlay.classList.contains('active')) return;
 
@@ -92,27 +135,39 @@ async function openBarcodeScanner() {
     overlay.classList.add('active');
 
     try {
-        // Ззпрашиваем камеру (facingMode: environment - задняя камера)
+        // запрашиваем камеру (facingMode: environment - задняя камера)
         _videoStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment' }
         });
-        
+
         const video = document.getElementById('scannerVideo');
         video.srcObject = _videoStream;
         await video.play();
 
-        // Настраиваем детектор (какие форматы ищем)
-        // Фикс: Запрашиваем поддерживаемые форматы, чтобы избежать ошибок в Safari/iOS
+        // настраиваем детектор.
+        // запрашиваем поддерживаемые форматы у самого класса,
+        // чтобы не уронить конструктор полифилла лишними именами.
         const desiredFormats = ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e'];
         let formats = desiredFormats;
 
-        if (typeof BarcodeDetector.getSupportedFormats === 'function') {
-            const available = await BarcodeDetector.getSupportedFormats();
+        if (typeof DetectorClass.getSupportedFormats === 'function') {
+            const available = await DetectorClass.getSupportedFormats();
             formats = desiredFormats.filter(f => available.includes(f));
+            // если нужных форматов нет, но какие-то есть — берём всё что умеет
             if (formats.length === 0) formats = available;
         }
 
-        _barcodeDetector = new BarcodeDetector({ formats });
+        // пустой список форматов роняет конструктор.
+        // поэтому проверяем и не запускаем скан если совсем ничего нет.
+        if (!formats || formats.length === 0) {
+            if (typeof showToast === 'function') {
+                showToast('Сканер штрих-кодів не підтримує жодного формату', true);
+            }
+            closeBarcodeScanner();
+            return;
+        }
+
+        _barcodeDetector = new DetectorClass({ formats });
 
         startScanLoop();
 
@@ -125,7 +180,13 @@ async function openBarcodeScanner() {
     }
 }
 
-let _scanInFlight = false;
+// ============================================================
+// блок 3. цикл распознавания
+//
+// защита от параллельных detect().
+// если видео на паузе — не убиваем цикл, а ждём.
+// между кадрами пауза 150 мс чтобы не жечь батарею.
+// ============================================================
 
 async function startScanLoop() {
     const video = document.getElementById('scannerVideo');
@@ -180,7 +241,7 @@ async function startScanLoop() {
             }
         }
     } catch (e) {
-        // ошибка распознавания  просто продолжаем
+        // ошибка распознавания — просто продолжаем
     } finally {
         _scanInFlight = false;
     }
@@ -188,20 +249,39 @@ async function startScanLoop() {
     _scanTimerId = setTimeout(startScanLoop, 150);
 }
 
+// ============================================================
+// блок 4. закрытие сканера
+//
+// останавливаем таймер, гасим камеру,
+// сбрасываем флаг inflight и детектор,
+// иначе следующий запуск может подхватить полуживое состояние.
+// ============================================================
+
 function closeBarcodeScanner() {
     if (_scanTimerId) {
         clearTimeout(_scanTimerId);
         _scanTimerId = null;
     }
-    
+
+    _scanInFlight = false;
+    _barcodeDetector = null;
+
     if (_videoStream) {
         _videoStream.getTracks().forEach(track => track.stop());
         _videoStream = null;
     }
-    
+
     const overlay = document.getElementById('barcodeScannerOverlay');
     if (overlay) overlay.classList.remove('active');
 }
+
+// ============================================================
+// блок 5. возврат на вкладку
+//
+// если пользователь свернул вкладку во время скана,
+// браузер поставит видео на паузу.
+// при возврате надо запустить play() и цикл заново.
+// ============================================================
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
