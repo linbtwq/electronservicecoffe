@@ -2,23 +2,85 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Unit Tests</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Unit Tests · CoffeeMeters</title>
     <style>
-        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #ddd; line-height: 1.5; }
-        .pass { color: #4caf50; }
-        .fail { color: #f44336; }
-        .test-group { margin-bottom: 25px; border-left: 3px solid #555; padding-left: 15px; }
-        h2 { color: #fff; border-bottom: 1px solid #555; padding-bottom: 5px; margin-top: 0; }
-        pre { margin: 5px 0; white-space: pre-wrap; }
-        .summary { font-size: 1.2rem; padding: 15px; background: #2d2d2d; border-radius: 8px; margin-bottom: 20px; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+            padding: 24px;
+            background: #0f1419;
+            color: #d4d4d4;
+            line-height: 1.5;
+            margin: 0;
+        }
+        h1 {
+            color: #e5e7eb;
+            font-size: 1.4rem;
+            margin: 0 0 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .summary {
+            font-size: 1rem;
+            padding: 16px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            background: #1a1f26;
+            border: 1px solid #2d3748;
+        }
+        .summary.all-pass { background: #0d2818; border-color: #166534; color: #86efac; }
+        .summary.has-fail { background: #2a1010; border-color: #7f1d1d; color: #fca5a5; }
+        .summary details { margin-top: 10px; font-size: 0.9rem; }
+        .summary summary { cursor: pointer; color: #94a3b8; }
+        .summary ul { margin: 8px 0 0; padding-left: 20px; }
+        .summary li { margin: 4px 0; color: #fca5a5; }
+
+        .test-group {
+            margin-bottom: 20px;
+            background: #131820;
+            padding: 14px 18px;
+            border-radius: 8px;
+            border-left: 3px solid #334155;
+        }
+        .test-group h2 {
+            color: #7dd3fc;
+            font-size: 1.05rem;
+            margin: 0 0 10px;
+            font-weight: 600;
+        }
+        pre {
+            margin: 4px 0;
+            white-space: pre-wrap;
+            font-size: 0.85rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        pre.pass { color: #86efac; }
+        pre.fail {
+            color: #fca5a5;
+            background: #2a1010;
+            border-left: 2px solid #ef4444;
+            padding-left: 10px;
+        }
+        .sep {
+            color: #475569;
+            font-size: 0.72rem;
+            margin: 8px 0;
+            letter-spacing: 2px;
+        }
     </style>
 </head>
 <body>
-    <h1>🧪 Результати тестів</h1>
+    <h1>🧪 Unit Tests · CoffeeMeters</h1>
     <div id="summary" class="summary">Запуск тестів...</div>
     <div id="output"></div>
 
-    <!-- Подключаем зависимости (модули, которые тестируем) -->
+    <!-- ============================================================
+         МОДУЛІ, ЩО ТЕСТУЮТЬСЯ
+         ============================================================ -->
     <script src="javascript/config.js"></script>
     <script src="javascript/core/utils.js"></script>
     <script src="javascript/core/state.js"></script>
@@ -30,162 +92,522 @@
     <script src="javascript/app/submit.js"></script>
 
     <script>
-        const output = document.getElementById('output');
-        let passCount = 0;
-        let failCount = 0;
+    (async function () {
+        'use strict';
 
-        function assert(actual, expected, testName) {
-            const normalize = (val) => String(val).replace(/\s+/g, ' ').trim();
-            const isPass = normalize(actual) === normalize(expected);
-            
-            if (isPass) {
-                passCount++;
-                output.innerHTML += `<pre class="pass">✅ ${testName}</pre>`;
-            } else {
-                failCount++;
-                output.innerHTML += `<pre class="fail">❌ ${testName}\n   Очікували: ${JSON.stringify(expected)}\n   Отримали: ${JSON.stringify(actual)}</pre>`;
+        // ============================================================
+        // 0. ЛОКАЛЬНІ ХЕЛПЕРИ (не залежать від модулів, що тестуються)
+        // ============================================================
+        const safeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, c => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
+
+        const stringify = (v) => {
+            if (v === undefined) return 'undefined';
+            if (v === null) return 'null';
+            if (typeof v === 'string') return JSON.stringify(v);
+            if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+            try { return JSON.stringify(v); } catch (e) { return String(v); }
+        };
+
+        // ============================================================
+        // 1. ТЕСТОВИЙ РАННЕР
+        // ============================================================
+        const runner = (() => {
+            const out = document.getElementById('output');
+            const stats = { pass: 0, fail: 0, groups: 0, failures: [] };
+            let currentBody = null;
+            let currentGroupName = '';
+
+            function startGroup(name) {
+                stats.groups++;
+                currentGroupName = name;
+                const groupEl = document.createElement('div');
+                groupEl.className = 'test-group';
+                groupEl.innerHTML = `<h2>${safeHtml(name)}</h2><div data-body></div>`;
+                out.appendChild(groupEl);
+                currentBody = groupEl.querySelector('[data-body]');
             }
+
+            function endGroup() {
+                currentBody = null;
+                currentGroupName = '';
+            }
+
+            function append(html) {
+                if (currentBody) currentBody.insertAdjacentHTML('beforeend', html);
+                else out.insertAdjacentHTML('beforeend', html);
+            }
+
+            function pass(name, extra) {
+                stats.pass++;
+                const ex = extra ? ` <span style="color:#64748b">· ${safeHtml(extra)}</span>` : '';
+                append(`<pre class="pass">✅ ${safeHtml(name)}${ex}</pre>`);
+            }
+
+            function fail(name, message) {
+                stats.fail++;
+                stats.failures.push({ group: currentGroupName, name, message });
+                append(`<pre class="fail">❌ ${safeHtml(name)}\n   ${safeHtml(message)}</pre>`);
+            }
+
+            // Строга рівність (Object.is). Не плутає 1 і '1', null і undefined.
+            function eq(actual, expected, name) {
+                if (Object.is(actual, expected)) return pass(name);
+                return fail(name, `Очікували: ${stringify(expected)}\n   Отримали: ${stringify(actual)}`);
+            }
+
+            // М'яка рівність — нормалізує whitespace в рядках. Для повідомлень/текстів.
+            function eqSoft(actual, expected, name) {
+                const norm = (v) => typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : v;
+                if (Object.is(norm(actual), norm(expected))) return pass(name);
+                return fail(name, `Очікували: ${stringify(expected)}\n   Отримали: ${stringify(actual)}`);
+            }
+
+            function contains(haystack, needle, name) {
+                if (String(haystack).includes(String(needle))) return pass(name);
+                return fail(name, `Очікували підрядок: ${stringify(needle)}\n   У рядку: ${stringify(haystack)}`);
+            }
+
+            function deepEq(actual, expected, name) {
+                const a = JSON.stringify(actual);
+                const e = JSON.stringify(expected);
+                if (a === e) return pass(name);
+                return fail(name, `Очікували: ${e}\n   Отримали: ${a}`);
+            }
+
+            async function throwsAsync(fn, name) {
+                try { await fn(); }
+                catch (e) { return pass(name); }
+                return fail(name, 'Очікували виняток, але його не було');
+            }
+
+            function sep() { append('<pre class="sep">─ ─ ─ ─ ─</pre>'); }
+
+            async function runGroup(name, body) {
+                try {
+                    startGroup(name);
+                    await body();
+                } catch (e) {
+                    fail('__group_crashed__', `Група впала: ${e.message}`);
+                }
+                endGroup();
+            }
+
+            function finalize() {
+                const s = document.getElementById('summary');
+                const total = stats.pass + stats.fail;
+                s.className = 'summary ' + (stats.fail === 0 ? 'all-pass' : 'has-fail');
+
+                if (stats.fail === 0) {
+                    s.innerHTML = `✅ <b>Усі ${total} тестів пройшли</b> · ${stats.groups} груп`;
+                    return;
+                }
+                const items = stats.failures.map(f =>
+                    `<li><b>${safeHtml(f.group)}</b> → ${safeHtml(f.name)}: ${safeHtml(f.message.split('\n')[0])}</li>`
+                ).join('');
+                s.innerHTML = `
+                    <div>❌ <b>${stats.fail} з ${total} провалено</b> · ${stats.pass} пройшло · ${stats.groups} груп</div>
+                    <details><summary>Деталі провалів</summary><ul>${items}</ul></details>
+                `;
+            }
+
+            return { eq, eqSoft, contains, deepEq, throwsAsync, runGroup, finalize, sep };
+        })();
+
+        // ============================================================
+        // 2. МОКИ (єдина точка правди для стану тестів)
+        // ============================================================
+        const mocks = {
+            toast: { message: '', isError: false, count: 0 },
+            success: { count: 0 },
+            loadData: { count: 0, args: [] },
+            fetch: { handler: null },
+            fetchCalls: [],
+        };
+
+        function resetMocks() {
+            mocks.toast = { message: '', isError: false, count: 0 };
+            mocks.success = { count: 0 };
+            mocks.loadData = { count: 0, args: [] };
+            mocks.fetch.handler = null;
+            mocks.fetchCalls = [];
         }
 
-        // ==========================================
-        // МОКИ (заглушки для UI и сети)
-        // ==========================================
-        
-        // Перехватываем показ уведомлений
-        let lastToastMessage = '';
-        let lastToastIsError = false;
-        window.showToast = function(msg, isError) {
-            lastToastMessage = msg;
-            lastToastIsError = !!isError;
+        // Перехоплення високорівневих функцій
+        window.showToast = function (msg, isError) {
+            mocks.toast.message = msg;
+            mocks.toast.isError = !!isError;
+            mocks.toast.count++;
         };
-        
-        // Перехватываем галочку успеха
-        let successAnimCalled = false;
-        window.showSuccessAnimation = function() { successAnimCalled = true; };
-
-        // Перехватываем обновление данных
-        let loadDataCalled = false;
-        window.loadData = function() { loadDataCalled = true; };
-
-        // Мокаем fetch (самый нижний уровень сети в приложении)
-        let mockResponse = {};
-        let mockNetworkError = false;
-        window.fetch = async function() {
-            if (mockNetworkError) throw new Error('Failed to fetch (timeout)');
-            return mockResponse;
+        window.showSuccessAnimation = function () { mocks.success.count++; };
+        window.loadData = function (opts) {
+            mocks.loadData.count++;
+            mocks.loadData.args.push(opts);
         };
 
-        // Создаем фейковую кнопку для тестов
+        // Єдина обгортка над fetch — фіксуємо всі виклики
+        window.fetch = function (url, opts) {
+            mocks.fetchCalls.push({ url: String(url), opts: opts || {} });
+            if (!mocks.fetch.handler) {
+                return Promise.reject(new Error('[test] fetch called but not mocked'));
+            }
+            return mocks.fetch.handler(url, opts);
+        };
+
+        // Готові хендлери для fetch
+        function fetchOk(body) {
+            return async () => ({
+                ok: true, status: 200,
+                json: async () => body,
+                text: async () => JSON.stringify(body),
+            });
+        }
+        function fetchHttpError(status, text) {
+            return async () => ({
+                ok: false, status,
+                json: async () => ({}),
+                text: async () => text,
+            });
+        }
+        function fetchNetwork() {
+            return async () => { throw new Error('Failed to fetch (timeout)'); };
+        }
+        function fetchHang() {
+            return (url, opts) => new Promise((resolve, reject) => {
+                if (opts && opts.signal) {
+                    opts.signal.addEventListener('abort', () => {
+                        const e = new Error('Aborted');
+                        e.name = 'AbortError';
+                        reject(e);
+                    }, { once: true });
+                }
+            });
+        }
+
+        // Спільна "кнопка" для тестів submitDocument
         const fakeBtn = document.createElement('button');
         fakeBtn.textContent = 'Відправити';
+        fakeBtn.style.display = 'none';
         document.body.appendChild(fakeBtn);
 
-        // ==========================================
-        // ТЕСТИ
-        // ==========================================
-
-        async function runTests() {
-            // --- ГРУПА 1: isBlankServerError ---
-            output.innerHTML += `<div class="test-group"><h2>1. isBlankServerError (Помилки 1С)</h2>`;
-            assert(isBlankServerError(null), true, 'null вважається пустою помилкою');
-            assert(isBlankServerError(''), true, 'Пуста строка');
-            assert(isBlankServerError('   '), true, 'Тільки пробіли');
-            assert(isBlankServerError(' / '), true, 'Класична заглушка 1С з слешами');
-            assert(isBlankServerError('Документ не проведено'), false, 'Реальна помилка');
-            output.innerHTML += `</div>`;
-
-            // --- ГРУПА 2: normalizeCode ---
-            output.innerHTML += `<div class="test-group"><h2>2. normalizeCode (Нормалізація кодів)</h2>`;
-            assert(normalizeCode(' 007 '), '7', 'Видалення пробілів та ведучих нулів');
-            assert(normalizeCode('M-100'), 'M-100', 'Літерно-цифровий код');
-            assert(normalizeCode('000'), '', 'Всі нулі перетворюються на порожній рядок (означає "всі")'); // <--- ВИПРАВЛЕНО
-            assert(normalizeCode(null), '', 'Null на вході');
-            output.innerHTML += `</div>`;
-
-            // --- ГРУПА 3: filterPoints ---
-            output.innerHTML += `<div class="test-group"><h2>3. filterPoints (Пошук)</h2>`;
-            
-            globalData = [
-                { id: '1', point_name: 'Магазин А', address: 'вул. Хрещатик', coffee_machine_code: 'M-100' },
-                { id: '2', point_name: 'Магазин Б', address: 'вул. Грушевського', coffee_machine_code: 'M-200' },
-                { id: '3', point_name: 'Кафе В', address: 'вул. Сагайдачного', coffee_machine_code: 'X-999' }
-            ];
-
-            assert(filterPoints('1', 'all').length, 1, 'All: Пошук по ID (1)');
-            assert(filterPoints('Магазин', 'all').length, 2, 'All: Пошук по назві');
-            assert(filterPoints('M-100', 'all').length, 1, 'All: Пошук по коду машини');
-            assert(filterPoints('0', 'all').length, 3, 'All: 0 показує всі точки');
-            
-            assert(filterPoints('Сагайдачного', 'point').length, 1, 'Point: Пошук по адресі');
-            assert(filterPoints('M-100', 'point').length, 0, 'Point: Не шукає по коду машини');
-            
-            assert(filterPoints('X-999', 'machine').length, 1, 'Machine: Пошук по коду машини');
-            assert(filterPoints('Кафе', 'machine').length, 1, 'Machine: Шукає по назві точки');
-            output.innerHTML += `</div>`;
-
-            // --- ГРУПА 4: submitDocument ---
-            output.innerHTML += `<div class="test-group"><h2>4. submitDocument (Відправка)</h2>`;
-            
-            // Тест 4.1: Успешная отправка
-            mockNetworkError = false;
-            mockResponse = { 
-                ok: true, 
-                json: async () => ({ ok: true, sum: 100 }) 
-            };
-            successAnimCalled = false;
-            loadDataCalled = false;
-            lastToastMessage = '';
-
-            await submitDocument({
-                endpoint: 'test',
-                payload: {},
-                btn: fakeBtn
-            });
-            
-            assert(successAnimCalled, true, 'Успіх: викликано анімацію галочки');
-            assert(loadDataCalled, true, 'Успіх: викликано оновлення даних');
-            assert(fakeBtn.disabled, false, 'Успіх: кнопка розблокована після відправки');
-
-            // Тест 4.2: Ошибка проведения (conduct_error)
-            mockResponse = { 
-                ok: true, 
-                json: async () => ({ ok: true, conduct_error: 'Недостатньо залишків' }) 
-            };
-            lastToastMessage = '';
-            lastToastIsError = false;
-
-            await submitDocument({
-                endpoint: 'test',
-                payload: {},
-                btn: fakeBtn
-            });
-
-            assert(lastToastIsError, true, 'Conduct error: показано ЧЕРВОНИЙ тост');
-            assert(lastToastMessage.includes('НЕ ПРОВЕДЕНО'), true, 'Conduct error: текст містить "НЕ ПРОВЕДЕНО"');
-
-            // Тест 4.3: Сетевая ошибка
-            mockNetworkError = true;
-            lastToastMessage = '';
-            
-            await submitDocument({
-                endpoint: 'test',
-                payload: {},
-                btn: fakeBtn
-            });
-
-            assert(lastToastMessage.includes('не відповідає'), true, 'Мережа: показано тост "1С не відповідає"');
-
-            output.innerHTML += `</div>`;
-
-            // --- ПІДСУМОК ---
-            const summary = document.getElementById('summary');
-            summary.innerHTML = `Всього: <span class="pass">${passCount} успішно</span>, <span class="fail">${failCount} провалено</span>`;
+        function beforeEach() {
+            resetMocks();
+            fakeBtn.disabled = false;
+            fakeBtn.textContent = 'Відправити';
+            delete fakeBtn.dataset.originalText;
         }
 
-        // Запуск
-        runTests().catch(e => {
-            document.getElementById('summary').innerHTML = `<span class="fail">ПОМИЛКА ЗАПУСКУ: ${e.message}</span>`;
-        });
+        // ============================================================
+        // 3. ТЕСТИ
+        // ============================================================
+        try {
+
+            // ---------- Група 1: isBlankServerError ----------
+            await runner.runGroup('1. isBlankServerError', async () => {
+                runner.eq(isBlankServerError(null), true, 'null → true');
+                runner.eq(isBlankServerError(undefined), true, 'undefined → true');
+                runner.eq(isBlankServerError(''), true, 'порожній рядок → true');
+                runner.eq(isBlankServerError('   '), true, 'пробіли → true');
+                runner.eq(isBlankServerError(' / '), true, 'класична заглушка " / " → true');
+                runner.eq(isBlankServerError('///'), true, 'тільки слеші → true');
+                runner.eq(isBlankServerError('Документ не проведено'), false, 'реальна помилка → false');
+                runner.eq(isBlankServerError('a'), false, 'літера → false');
+            });
+
+            // ---------- Група 2: stripZeros / normalizeCode ----------
+            await runner.runGroup('2. stripZeros / normalizeCode', async () => {
+                runner.eq(stripZeros('007'), '7', 'stripZeros: "007" → "7"');
+                runner.eq(stripZeros('000'), '', 'stripZeros: "000" → ""');
+                runner.eq(stripZeros(' 42 '), '42', 'stripZeros: пробіли видалено');
+                runner.eq(stripZeros('0'), '', 'stripZeros: "0" → ""');
+                runner.eq(stripZeros(null), '', 'stripZeros: null → ""');
+                runner.eq(stripZeros(undefined), '', 'stripZeros: undefined → ""');
+                runner.eq(stripZeros(42), '42', 'stripZeros: число → рядок');
+
+                runner.sep();
+
+                runner.eq(normalizeCode(' 007 '), '7', 'normalizeCode: пробіли + нулі');
+                runner.eq(normalizeCode('M-100'), 'M-100', 'normalizeCode: літерно-цифровий');
+                runner.eq(normalizeCode('00 1 0 0'), '100', 'normalizeCode: пробіли всередині');
+                runner.eq(normalizeCode(null), '', 'normalizeCode: null → ""');
+            });
+
+            // ---------- Група 3: fmt ----------
+            await runner.runGroup('3. fmt', async () => {
+                runner.eq(fmt(0), '0', 'fmt: 0');
+                runner.eq(fmt(NaN), '0', 'fmt: NaN → "0"');
+                runner.eq(fmt(Infinity), '0', 'fmt: Infinity → "0"');
+                runner.eq(fmt(-Infinity), '0', 'fmt: -Infinity → "0"');
+                runner.eq(fmt('not a number'), '0', 'fmt: не-число → "0"');
+                runner.eq(fmt(''), '0', 'fmt: пустий рядок → "0"');
+                runner.contains(fmt(1234), '1', 'fmt: 1234 містить 1');
+                runner.contains(fmt(1234), '234', 'fmt: 1234 містить 234');
+            });
+
+            // ---------- Група 4: escapeHtml ----------
+            await runner.runGroup('4. escapeHtml', async () => {
+                runner.eq(escapeHtml('<script>alert(1)<\/script>'),
+                    '&lt;script&gt;alert(1)&lt;\/script&gt;',
+                    'escapeHtml: script-тег');
+                runner.eq(escapeHtml('a & b'), 'a &amp; b', 'escapeHtml: амперсанд');
+                runner.eq(escapeHtml('"q"'), '&quot;q&quot;', 'escapeHtml: подвійні лапки');
+                runner.eq(escapeHtml("'q'"), '&#39;q&#39;', 'escapeHtml: одинарні лапки');
+                runner.eq(escapeHtml('plain'), 'plain', 'escapeHtml: без змін');
+                runner.eq(escapeHtml(null), '', 'escapeHtml: null → ""');
+                runner.eq(escapeHtml(undefined), '', 'escapeHtml: undefined → ""');
+                runner.eq(escapeHtml(0), '0', 'escapeHtml: число 0');
+            });
+
+            // ---------- Група 5: readJsonSafe ----------
+            await runner.runGroup('5. readJsonSafe', async () => {
+                localStorage.setItem('__t_obj', JSON.stringify({ a: 1 }));
+                runner.eq(readJsonSafe('__t_obj', null).a, 1, 'коректний JSON розпарсено');
+                localStorage.removeItem('__t_obj');
+
+                localStorage.setItem('__t_bad', '{broken');
+                runner.eq(readJsonSafe('__t_bad', 'fallback'), 'fallback', 'битий JSON → fallback');
+                localStorage.removeItem('__t_bad');
+
+                runner.eq(readJsonSafe('__t_missing', 'default'), 'default', 'відсутній ключ → fallback');
+
+                localStorage.setItem('__t_null', 'null');
+                runner.eq(readJsonSafe('__t_null', 'fb'), 'fb', 'JSON null → fallback');
+                localStorage.removeItem('__t_null');
+            });
+
+            // ---------- Група 6: isStubResponse ----------
+            await runner.runGroup('6. isStubResponse', async () => {
+                runner.eq(isStubResponse([{ Code: '0', Name: 'Заглушка' }]), true, 'один елемент Code="0" → true');
+                runner.eq(isStubResponse([{ Code: 0 }]), true, 'Code=0 (число) → true');
+                runner.eq(isStubResponse([{ Code: '1' }]), false, 'Code="1" → false');
+                runner.eq(isStubResponse([]), false, 'порожній масив → false');
+                runner.eq(isStubResponse([{ Code: '0' }, { Code: '0' }]), false, 'два елементи → false');
+                runner.eq(isStubResponse(null), false, 'null → false');
+                runner.eq(isStubResponse(undefined), false, 'undefined → false');
+                runner.eq(isStubResponse('string'), false, 'рядок → false');
+            });
+
+            // ---------- Група 7: newRequestId ----------
+            await runner.runGroup('7. newRequestId', async () => {
+                const ids = new Set();
+                for (let i = 0; i < 200; i++) ids.add(newRequestId());
+                runner.eq(ids.size, 200, '200 викликів → 200 унікальних id');
+                runner.eq(typeof newRequestId(), 'string', 'повертає рядок');
+                runner.eq(newRequestId().length > 0, true, 'непорожній рядок');
+            });
+
+            // ---------- Група 8: filterPoints ----------
+            await runner.runGroup('8. filterPoints', async () => {
+                globalData = [
+                    { id: '1', point_name: 'Магазин А', address: 'вул. Хрещатик', coffee_machine_code: 'M-100' },
+                    { id: '2', point_name: 'Магазин Б', address: 'вул. Грушевського', coffee_machine_code: 'M-200' },
+                    { id: '3', point_name: 'Кафе В', address: 'вул. Сагайдачного', coffee_machine_code: 'X-999' },
+                ];
+
+                runner.eq(filterPoints('1', 'all').map(i => i.id).join(','), '1', 'all: ID "1" → тільки точка 1');
+                runner.eq(filterPoints('Магазин', 'all').map(i => i.id).sort().join(','), '1,2', 'all: "Магазин" → 1,2');
+                runner.eq(filterPoints('M-100', 'all').map(i => i.id).join(','), '1', 'all: код машини M-100');
+                runner.eq(filterPoints('0', 'all').map(i => i.id).join(','), '1,2,3', 'all: "0" → всі відсортовано');
+                runner.eq(filterPoints('000', 'all').length, 3, 'all: "000" → всі');
+                runner.eq(filterPoints('невідоме', 'all').length, 0, 'all: невідоме → 0');
+
+                runner.sep();
+
+                runner.eq(filterPoints('Сагайдачного', 'point').map(i => i.id).join(','), '3', 'point: пошук по адресі');
+                runner.eq(filterPoints('M-100', 'point').length, 0, 'point: не шукає по коду машини');
+                runner.eq(filterPoints('Кафе', 'point').map(i => i.id).join(','), '3', 'point: пошук по назві');
+
+                runner.sep();
+
+                runner.eq(filterPoints('X-999', 'machine').map(i => i.id).join(','), '3', 'machine: код машини');
+                runner.eq(filterPoints('Кафе', 'machine').length, 1, 'machine: шукає по назві точки');
+                runner.eq(filterPoints('0', 'machine').length, 3, 'machine: "0" → всі з машинами');
+            });
+
+            // ---------- Група 9: postJson ----------
+            await runner.runGroup('9. postJson', async () => {
+                beforeEach();
+                mocks.fetch.handler = fetchOk({ ok: true });
+                await postJson('meters', { foo: 'bar', n: 42 });
+
+                const call = mocks.fetchCalls[0];
+                runner.eq(!!call, true, 'fetch викликано');
+                runner.eq(call.opts.method, 'POST', 'метод POST');
+                runner.eq(call.opts.headers['Content-Type'], 'application/json', 'Content-Type правильний');
+                runner.contains(call.url, '/meters', 'URL містить endpoint');
+                runner.contains(call.url, 'v=' + APP_CONFIG.apiVersion, 'URL містить версію API');
+
+                const body = JSON.parse(call.opts.body);
+                runner.eq(body.foo, 'bar', 'тіло містить foo');
+                runner.eq(body.n, 42, 'тіло містить n як число');
+            });
+
+            // ---------- Група 10: fetchWithTimeout ----------
+            await runner.runGroup('10. fetchWithTimeout', async () => {
+                beforeEach();
+                mocks.fetch.handler = fetchHang();
+                const t0 = Date.now();
+                let err = null;
+                try { await fetchWithTimeout('http://example.com/', {}, 60); }
+                catch (e) { err = e; }
+                const elapsed = Date.now() - t0;
+
+                runner.eq(err !== null, true, 'таймаут → виняток');
+                runner.contains(err.message, 'timeout', 'повідомлення містить "timeout"');
+                runner.eq(elapsed >= 40, true, `таймаут спрацював не раніше 40мс (${elapsed}мс)`);
+
+                beforeEach();
+                mocks.fetch.handler = fetchHang();
+                const ctrl = new AbortController();
+                setTimeout(() => ctrl.abort(), 20);
+
+                let err2 = null;
+                try { await fetchWithTimeout('http://example.com/', { signal: ctrl.signal }, 5000); }
+                catch (e) { err2 = e; }
+                runner.eq(err2 !== null, true, 'зовнішній abort → виняток');
+            });
+
+            // ---------- Група 11: submitDocument ----------
+            await runner.runGroup('11. submitDocument', async () => {
+
+                // 11.1 Успіх + onSuccess отримує тіло
+                beforeEach();
+                mocks.fetch.handler = fetchOk({ ok: true, sum: 100 });
+                let capturedBody = null, capturedErr = null, onSuccessCalls = 0;
+                await submitDocument({
+                    endpoint: 'orders', payload: { x: 1 }, btn: fakeBtn,
+                    onSuccess: (b, e) => { capturedBody = b; capturedErr = e; onSuccessCalls++; },
+                });
+                runner.eq(onSuccessCalls, 1, 'успіх: onSuccess викликано 1 раз');
+                runner.eq(capturedBody && capturedBody.sum, 100, 'успіх: onSuccess отримав responseBody');
+                runner.eq(capturedErr, '', 'успіх: conductError порожній');
+                runner.eq(mocks.success.count, 1, 'успіх: показано галочку');
+                runner.eq(mocks.loadData.count, 1, 'успіх: loadData викликано');
+                runner.eq(fakeBtn.disabled, false, 'успіх: кнопка розблокована');
+                runner.sep();
+
+                // 11.2 conduct_error → червоний тост, галочки НЕМАЄ
+                beforeEach();
+                mocks.fetch.handler = fetchOk({ ok: true, conduct_error: 'Недостатньо залишків' });
+                let ce = null, ceCalls = 0;
+                await submitDocument({
+                    endpoint: 'orders', payload: {}, btn: fakeBtn,
+                    onSuccess: (b, e) => { ce = e; ceCalls++; },
+                });
+                runner.eq(ceCalls, 1, 'conduct_error: onSuccess викликано');
+                runner.eq(ce, 'Недостатньо залишків', 'conduct_error: onSuccess отримав conductError');
+                runner.eq(mocks.toast.isError, true, 'conduct_error: червоний тост');
+                runner.contains(mocks.toast.message, 'НЕ ПРОВЕДЕНО', 'conduct_error: текст містить "НЕ ПРОВЕДЕНО"');
+                runner.eq(mocks.success.count, 0, 'conduct_error: галочка НЕ показана');
+                runner.eq(mocks.loadData.count, 1, 'conduct_error: loadData все одно викликано');
+                runner.sep();
+
+                // 11.3 responseBody.ok === false
+                beforeEach();
+                mocks.fetch.handler = fetchOk({ ok: false, error: 'Точка заблокована' });
+                let okFalseCalls = 0;
+                await submitDocument({
+                    endpoint: 'orders', payload: {}, btn: fakeBtn,
+                    onSuccess: () => { okFalseCalls++; },
+                });
+                runner.eq(mocks.toast.isError, true, 'ok:false → червоний тост');
+                runner.contains(mocks.toast.message, 'Точка заблокована', 'ok:false → текст з 1С');
+                runner.eq(okFalseCalls, 0, 'ok:false → onSuccess НЕ викликано');
+                runner.eq(mocks.success.count, 0, 'ok:false → галочка не показана');
+                runner.eq(mocks.loadData.count, 0, 'ok:false → loadData НЕ викликано');
+                runner.sep();
+
+                // 11.4 HTTP 500
+                beforeEach();
+                mocks.fetch.handler = fetchHttpError(500, 'Internal Server Error');
+                await submitDocument({ endpoint: 'orders', payload: {}, btn: fakeBtn });
+                runner.eq(mocks.toast.isError, true, 'HTTP 500 → червоний тост');
+                runner.contains(mocks.toast.message, 'Internal Server Error', 'HTTP 500 → текст у тості');
+                runner.eq(mocks.success.count, 0, 'HTTP 500 → без галочки');
+                runner.eq(mocks.loadData.count, 0, 'HTTP 500 → без loadData');
+                runner.sep();
+
+                // 11.5 Мережева помилка
+                beforeEach();
+                mocks.fetch.handler = fetchNetwork();
+                await submitDocument({ endpoint: 'orders', payload: {}, btn: fakeBtn });
+                runner.eq(mocks.toast.isError, true, 'мережа → червоний тост');
+                runner.contains(mocks.toast.message, 'не відповідає', 'мережа → "1С не відповідає"');
+                runner.sep();
+
+                // 11.6 onSuccess кидає → loadData все одно викликано
+                beforeEach();
+                mocks.fetch.handler = fetchOk({ ok: true });
+                await submitDocument({
+                    endpoint: 'orders', payload: {}, btn: fakeBtn,
+                    onSuccess: () => { throw new Error('boom'); },
+                });
+                runner.eq(mocks.success.count, 1, 'onSuccess впав → галочка все одно показана');
+                runner.eq(mocks.loadData.count, 1, 'onSuccess впав → loadData все одно викликано');
+                runner.sep();
+
+                // 11.7 closeBtn блокується синхронно і розблоковується
+                beforeEach();
+                mocks.fetch.handler = fetchOk({ ok: true });
+                const closeBtn = document.createElement('button');
+                const p = submitDocument({ endpoint: 'orders', payload: {}, btn: fakeBtn, closeBtn });
+                runner.eq(closeBtn.disabled, true, 'closeBtn заблокований синхронно');
+                await p;
+                runner.eq(closeBtn.disabled, false, 'closeBtn розблокований після');
+                runner.sep();
+
+                // 11.8 Захист від подвійного кліку
+                beforeEach();
+                mocks.fetch.handler = fetchOk({ ok: true });
+                fakeBtn.disabled = true;
+                await submitDocument({ endpoint: 'orders', payload: {}, btn: fakeBtn });
+                runner.eq(mocks.fetchCalls.length, 0, 'btn.disabled → fetch НЕ викликано');
+                runner.contains(mocks.toast.message, 'Зачекайте', 'btn.disabled → тост "Зачекайте"');
+                runner.sep();
+
+                // 11.9 Без onSuccess і без closeBtn — просто працює
+                beforeEach();
+                mocks.fetch.handler = fetchOk({ ok: true });
+                await submitDocument({ endpoint: 'orders', payload: {}, btn: fakeBtn });
+                runner.eq(mocks.success.count, 1, 'без колбеків: галочка показана');
+                runner.eq(mocks.loadData.count, 1, 'без колбеків: loadData викликано');
+                runner.eq(fakeBtn.disabled, false, 'без колбеків: кнопка розблокована');
+                runner.sep();
+
+                // 11.10 loadData кидає — submitDocument НЕ ламається
+                beforeEach();
+                mocks.fetch.handler = fetchOk({ ok: true });
+                const origLoadData = window.loadData;
+                window.loadData = () => { throw new Error('loadData boom'); };
+                let threw = false;
+                try {
+                    await submitDocument({ endpoint: 'orders', payload: {}, btn: fakeBtn });
+                } catch (e) { threw = true; }
+                window.loadData = origLoadData;
+                runner.eq(threw, false, 'loadData впав → submitDocument НЕ кинув');
+                runner.eq(mocks.success.count, 1, 'loadData впав → галочка все одно показана');
+            });
+
+            // ---------- Група 12: actionIconMarkup ----------
+            await runner.runGroup('12. actionIconMarkup', async () => {
+                runner.contains(actionIconMarkup('open'), '<svg', 'open: повертає svg');
+                runner.contains(actionIconMarkup('open'), 'M3 3v18h18', 'open: правильний шлях');
+                runner.contains(actionIconMarkup('assort'), '<svg', 'assort: повертає svg');
+                runner.contains(actionIconMarkup('pay'), '<svg', 'pay: повертає svg');
+                runner.eq(actionIconMarkup('unknown').includes('<path'), false, 'unknown: без paths');
+            });
+
+        } catch (globalErr) {
+            const s = document.getElementById('summary');
+            s.className = 'summary has-fail';
+            s.innerHTML = `❌ <b>ПОМИЛКА ЗАПУСКУ</b>: ${safeHtml(globalErr.message)}` +
+                `<pre style="margin-top:8px;color:#fca5a5">${safeHtml(globalErr.stack || '')}</pre>`;
+            return;
+        }
+
+        runner.finalize();
+    })();
     </script>
 </body>
 </html>
