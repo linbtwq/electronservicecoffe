@@ -19,7 +19,6 @@
     margin: 0;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-    /* убираем серую подсветку тапов на мобильных */
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -87,7 +86,6 @@
 body {
     background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
     color: var(--text);
-    /* dvh а не vh, чтобы не прыгало на мобильных адресных строках */
     height: 100dvh;
     display: flex;
     justify-content: center;
@@ -164,13 +162,11 @@ body.dark-theme {
     right: 0;
     height: 3px;
     z-index: 5000;
-    /* полоса декоративная, клики сквозь нее проходят */
     pointer-events: none;
     overflow: hidden;
     background: rgba(0, 0, 0, 0.05);
 }
 
-/* сама заливка полосы, растет слева направо */
 .top-progress::before {
     content: '';
     position: absolute;
@@ -182,7 +178,6 @@ body.dark-theme {
     box-shadow: 0 0 10px var(--primary);
 }
 
-/* активное состояние включает анимацию */
 .top-progress.active::before {
     animation: topProgress 1.4s ease-out forwards;
 }
@@ -210,13 +205,11 @@ body.dark-theme {
     transition: top 0.35s var(--ease), transform 0.35s var(--ease);
 }
 
-/* стартовое положение, по центру экрана */
 .search-container.center {
     top: 42%;
     transform: translateY(-50%);
 }
 
-/* рабочее положение, когда идет поиск, прижат к верху */
 .search-container.top {
     top: 40px;
     transform: translateY(0);
@@ -235,14 +228,12 @@ body.dark-theme {
     display: flex;
     align-items: center;
     padding: 14px 18px;
-    /* прозрачная рамка нужна чтобы при фокусе не прыгала высота */
     border: 2px solid transparent;
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.35);
     transition: border-color 0.25s ease, background-color 0.25s ease,
                 box-shadow 0.25s ease, transform 0.25s ease;
 }
 
-/* фокус на инпуте внутри, подсвечиваем рамку и чуть увеличиваем */
 .search-box:focus-within {
     border-color: var(--primary);
     background: var(--surface);
@@ -250,7 +241,6 @@ body.dark-theme {
     transform: scale(1.01);
 }
 
-/* темная тема для поля поиска */
 body.dark-theme .search-box {
     background: var(--surface);
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -271,7 +261,6 @@ body.dark-theme .search-box:focus-within {
     font-weight: 500;
 }
 
-/* иконка лупы слева */
 .search-icon {
     font-size: 1.1rem;
     margin-right: 10px;
@@ -279,7 +268,6 @@ body.dark-theme .search-box:focus-within {
     transition: color 0.25s ease, transform 0.25s ease;
 }
 
-/* при фокусе иконка перекрашивается в акцент */
 .search-box:focus-within .search-icon {
     color: var(--primary);
 }
@@ -330,7 +318,6 @@ body.dark-theme .search-box:focus-within {
     box-shadow: var(--shadow-card);
 }
 
-/* одна кнопка фильтра */
 .filter-chip {
     flex: 1;
     border: 0;
@@ -344,12 +331,10 @@ body.dark-theme .search-box:focus-within {
     transition: color 0.2s ease, transform 0.15s ease, background-color 0.2s ease;
 }
 
-/* легкий отклик на тап */
 .filter-chip:active {
     transform: scale(0.94);
 }
 
-/* активный фильтр с анимацией pop */
 .filter-chip.active {
     background: var(--surface);
     color: var(--primary);
@@ -357,7 +342,6 @@ body.dark-theme .search-box:focus-within {
     animation: chipPop 0.3s var(--ease-bounce);
 }
 
-/* темная тема для панели фильтров */
 body.dark-theme .search-filters {
     background: var(--surface-2);
     border-color: var(--border);
@@ -388,20 +372,16 @@ body.dark-theme .filter-chip.active {
     top: 165px;
     bottom: 40px;
     overflow-y: auto;
-    /* стартовое состояние скрыто, показывает класс active */
     opacity: 0;
     pointer-events: none;
     padding-top: 4px;
     padding-bottom: 20px;
     scrollbar-width: none;
-    /* не даем скроллу утекать на родителя на мобилке */
     overscroll-behavior: contain;
-    /* отключаем автосдвиг скролла при вставке элементов */
     overflow-anchor: none;
     transition: opacity 0.2s ease;
 }
 
-/* скроллбар скрываем в webkit */
 .results-container::-webkit-scrollbar {
     display: none;
 }
@@ -428,17 +408,14 @@ body.dark-theme .filter-chip.active {
     box-shadow: var(--shadow-card);
     transition: transform 0.25s var(--ease), box-shadow 0.25s ease,
                 border-color 0.25s ease, background-color 0.25s ease;
-    /* нужен для полосы слева при блокировке */
     overflow: hidden;
 }
 
-/* появление карточки с задержкой по индексу, дает эффект волны */
 .point-card:not(.skeleton-card) {
     animation: pointCardEnter 0.32s var(--ease) both;
     animation-delay: calc(var(--i, 0) * 18ms);
 }
 
-/* полоса слева у карточки, изначально прозрачная */
 .point-card::before {
     content: '';
     position: absolute;
@@ -451,12 +428,10 @@ body.dark-theme .filter-chip.active {
     border-radius: 0 4px 4px 0;
 }
 
-/* у заблокированной точки полоса желтая */
 .point-card.locked::before {
     background: #f59e0b;
 }
 
-/* ховер только на устройствах с мышью, на тач не нужен */
 @media (hover: hover) and (pointer: fine) {
     .point-card:not(.skeleton-card):hover {
         transform: translateY(-3px);
@@ -465,12 +440,10 @@ body.dark-theme .filter-chip.active {
     }
 }
 
-/* легкое сжатие при тапе */
 .point-card:active {
     transform: scale(0.995);
 }
 
-/* темная тема карточки */
 body.dark-theme .point-card {
     background: var(--surface);
     border-color: var(--border);
@@ -498,7 +471,6 @@ body.dark-theme .point-card:hover {
     border-bottom: 1px solid var(--separator);
 }
 
-/* левая часть, название и код */
 .point-header > div:first-child {
     display: flex;
     flex-wrap: wrap;
@@ -507,7 +479,6 @@ body.dark-theme .point-card:hover {
     min-width: 0;
 }
 
-/* правая часть, бейджи блокировок */
 .point-header > div:last-child {
     display: flex;
     flex-wrap: wrap;
@@ -524,7 +495,6 @@ body.dark-theme .point-card:hover {
     letter-spacing: -0.02em;
 }
 
-/* бейдж с кодом точки */
 .point-code {
     display: inline-flex;
     align-items: center;
@@ -556,7 +526,6 @@ body.dark-theme .point-card:hover {
     padding-left: 8px;
 }
 
-/* подпись поля */
 .info-item label {
     display: block;
     font-size: 0.72rem;
@@ -567,7 +536,6 @@ body.dark-theme .point-card:hover {
     font-weight: 600;
 }
 
-/* значение поля */
 .info-item span {
     font-size: 0.92rem;
     color: var(--text);
@@ -580,7 +548,6 @@ body.dark-theme .point-card:hover {
    оборудование в карточке
    ============================================================ */
 
-/* название оборудования зеленым, если оно есть */
 .machine-tag {
     color: var(--success);
     font-weight: 600;
@@ -594,7 +561,6 @@ body.dark-theme .point-card:hover {
     line-height: 1.4;
 }
 
-/* маленький бейдж с кодом машины */
 .machine-code {
     display: inline-flex;
     align-items: center;
@@ -644,7 +610,6 @@ body.dark-theme .point-card:hover {
     line-height: 1.2;
 }
 
-/* плашка долга с полосой слева */
 .debt-positive {
     display: flex;
     align-items: center;
@@ -721,7 +686,6 @@ body.dark-theme .point-card:hover {
     transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
-/* слой для ripple эффекта при клике */
 .action-btn::after {
     content: '';
     position: absolute;
@@ -743,7 +707,6 @@ body.dark-theme .point-card:hover {
     transition: width 0s, height 0s, opacity 0s;
 }
 
-/* ховеры только на мышке */
 @media (hover: hover) and (pointer: fine) {
     .action-btn:not(:disabled):hover {
         transform: translateY(-1px);
@@ -767,7 +730,6 @@ body.dark-theme .point-card:hover {
     box-shadow: 0 1px 4px rgba(79, 142, 247, 0.2);
 }
 
-/* неактивная кнопка, серая и без тени */
 .action-btn:disabled {
     background: var(--surface-3);
     color: var(--text-muted);
@@ -775,7 +737,6 @@ body.dark-theme .point-card:hover {
     box-shadow: none;
 }
 
-/* модификаторы цвета */
 .btn-secondary {
     background: var(--surface-3);
     color: var(--text-heading);
@@ -867,12 +828,10 @@ body.dark-theme .point-card:hover {
     height: 18px;
 }
 
-/* первая кнопка в сетке растягивается на обе колонки */
 .card-actions .action-btn:first-child {
     grid-column: 1 / -1;
 }
 
-/* второстепенные кнопки без цветного фона, только рамка */
 .card-actions .action-btn[data-action="stock"],
 .card-actions .action-btn[data-action="shipment"],
 .card-actions .action-btn[data-action="recount"],
@@ -888,7 +847,6 @@ body.dark-theme .point-card:hover {
     outline-offset: 2px;
 }
 
-/* кнопка пополнения всегда в цвете accent */
 .action-btn[data-action="assort"] {
     background: var(--accent);
     box-shadow: 0 2px 8px var(--accent-soft);
@@ -920,7 +878,6 @@ body.dark-theme .point-card:hover {
         padding: 4px 10px;
     }
 
-    /* на десктопе три колонки, контрагент, долг, оборудование */
     .point-grid {
         grid-template-columns: minmax(0, 1.2fr) minmax(72px, 0.55fr) minmax(0, 1.45fr);
         gap: 16px 20px;
@@ -937,7 +894,6 @@ body.dark-theme .point-card:hover {
         line-height: 1.35;
     }
 
-    /* последний блок долга растянут на всю ширину */
     .point-grid > .info-item:last-child {
         grid-column: 1 / -1;
         display: flex;
@@ -959,7 +915,6 @@ body.dark-theme .point-card:hover {
         padding-top: 16px;
     }
 
-    /* три главные кнопки по 4 колонки каждая */
     .card-actions .action-btn[data-action="open"],
     .card-actions .action-btn[data-action="assort"],
     .card-actions .action-btn[data-action="pay"] {
@@ -967,7 +922,6 @@ body.dark-theme .point-card:hover {
         min-height: 44px;
     }
 
-    /* четыре второстепенные по 3 колонки */
     .card-actions .action-btn[data-action="stock"],
     .card-actions .action-btn[data-action="shipment"],
     .card-actions .action-btn[data-action="recount"],
@@ -975,7 +929,6 @@ body.dark-theme .point-card:hover {
         grid-column: span 3;
     }
 
-    /* шапка пользователя на десктопе */
     .user-badge {
         top: 16px;
         left: 16px;
@@ -1009,7 +962,6 @@ body.dark-theme .point-card:hover {
         background: var(--surface-3);
     }
 
-    /* кнопки темы и кеша */
     .theme-toggle {
         top: 16px;
         right: 16px;
@@ -1020,7 +972,6 @@ body.dark-theme .point-card:hover {
         right: 68px;
     }
 
-    /* сдвигаем поиск и результаты вниз, на десктопе места больше */
     .search-container.top {
         top: 84px;
     }
@@ -1067,7 +1018,6 @@ body.dark-theme .point-card:hover {
         margin: 0;
     }
 
-    /* пустое состояние и показать еще занимают обе колонки */
     .results-container.active:not(.single-result) > .empty-state,
     .results-container.active:not(.single-result) > .show-more-wrap {
         grid-column: 1 / -1;
@@ -1091,7 +1041,6 @@ body.dark-theme .point-card.locked {
     border-color: #78350f;
 }
 
-/* бейдж показники зняті */
 .lock-badge {
     background: var(--warning-soft);
     color: var(--warning-text);
@@ -1103,13 +1052,11 @@ body.dark-theme .point-card.locked {
     animation: popIn 0.35s var(--ease-bounce) 0.1s backwards;
 }
 
-/* вариант бейджа для пополнения */
 .lock-badge.order {
     background: var(--primary-soft);
     color: var(--primary);
 }
 
-/* текстовые заметки под карточкой */
 .lock-note {
     margin-top: 14px;
     padding: 12px 14px;

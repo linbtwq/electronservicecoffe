@@ -44,7 +44,12 @@ function initTheme() {
             : '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>'
 
         themeBtn.setAttribute('aria-label', isDark ? 'Увімкнути світлу тему' : 'Увімкнути темну тему')
-        themeBtn.innerHTML = `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`
+        
+        // сохраняем текст, если он есть
+        const label = themeBtn.querySelector('.settings-label');
+        const iconSvg = `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+        
+        themeBtn.innerHTML = iconSvg + (label ? label.outerHTML : '');
     }
 
     setThemeIcon(isDarkMode)
@@ -99,10 +104,16 @@ function initFontScale() {
     let idx = sizes.indexOf(current);
     if (idx === -1) idx = 0; // если в кеше мусор, ставим стандартный
 
-    // Функция применения
+     // Функция применения
     const apply = (size, index) => {
         document.documentElement.style.fontSize = size;
-        btn.textContent = labels[index];
+        // Обновляем только текст внутри иконки, чтобы не стереть подпись
+        const iconText = btn.querySelector('.settings-icon-text');
+        if (iconText) {
+            iconText.textContent = labels[index];
+        } else {
+            btn.textContent = labels[index];
+        }
     };
 
     // Применяем при загрузке
@@ -120,3 +131,47 @@ function initFontScale() {
 
 // Вызываем инициализацию при загрузке страницы
 document.addEventListener('DOMContentLoaded', initFontScale);
+
+// ============================================================
+// блок 4. логика выпадающего меню настроек
+// ============================================================
+
+function initSettingsMenu() {
+    const container = document.getElementById('settingsContainer');
+    const trigger = document.getElementById('settingsTrigger');
+    const menu = document.getElementById('settingsMenu');
+
+    if (!trigger || !menu || !container) return;
+
+    const close = () => {
+        menu.classList.remove('active');
+        container.classList.remove('active');
+    };
+
+    const open = () => {
+        menu.classList.add('active');
+        container.classList.add('active');
+    };
+
+    // клик по шестеренке переключает меню
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (menu.classList.contains('active')) close();
+        else open();
+    });
+
+    // клик в любом другом месте закрывает
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) close();
+    });
+
+    // escape тоже закрывает
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && menu.classList.contains('active')) {
+            close();
+        }
+    });
+}
+
+// вызываем инициализацию меню при загрузке
+document.addEventListener('DOMContentLoaded', initSettingsMenu);

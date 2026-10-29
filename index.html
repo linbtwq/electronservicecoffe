@@ -71,9 +71,29 @@
         </div>
     </div>
 
-    <button id="themeToggle" class="theme-toggle" aria-label="Увімкнути темну тему"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg></button>
-    <button id="clearCacheBtn" class="cache-toggle" title="Очистити кеш" aria-label="Очистити кеш"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg></button>
-    <button id="fontScaleBtn" class="theme-toggle" title="Змінити розмір шрифту" aria-label="Змінити розмір шрифту" style="right: 124px; font-weight: 800; font-size: 15px;">A</button>
+    <div class="settings-container" id="settingsContainer">
+        <button class="settings-trigger" id="settingsTrigger" aria-label="Налаштування">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        </button>
+        <div class="settings-menu" id="settingsMenu">
+            <button class="settings-item" id="fontScaleBtn" aria-label="Змінити розмір шрифту">
+                <span class="settings-icon-text">A</span>
+                <span class="settings-label">Розмір шрифту</span>
+            </button>
+            <div class="settings-divider"></div>
+            <button class="settings-item" id="clearCacheBtn" aria-label="Очистити кеш">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg>
+                <span class="settings-label">Очистити кеш</span>
+            </button>
+            <div class="settings-divider"></div>
+            <button class="settings-item" id="themeToggle" aria-label="Увімкнути темну тему">
+                <span class="settings-label">Змінити тему</span>
+            </button>
+        </div>
+    </div>
 
     <div class="app-wrapper" id="appWrapper">
         <div class="search-container center" id="searchContainer">
